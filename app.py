@@ -1,25 +1,22 @@
 """
 EduCertify — Application Entry Point
 
-This module creates and configures the Flask application.
-
 Responsibilities:
 - Initialize Flask
 - Load application configuration
 - Configure templates and static files
 - Create upload directories
 - Initialize SQLAlchemy
+- Bootstrap the Admin account from environment variables
 - Register application blueprints
 - Register global error handlers
 - Register template globals
 - Provide a production-ready WSGI application
 
 Production server:
-
     gunicorn app:app
 
 Local development:
-
     python app.py
 """
 
@@ -72,7 +69,7 @@ def create_app(config_class=None):
     )
 
     # --------------------------------------------------------
-    # Basic production configuration
+    # Production defaults
     # --------------------------------------------------------
 
     app.config.setdefault(
@@ -86,7 +83,7 @@ def create_app(config_class=None):
     )
 
     # --------------------------------------------------------
-    # Create required upload directories
+    # Create upload directories
     # --------------------------------------------------------
 
     upload_folders = (
@@ -111,7 +108,13 @@ def create_app(config_class=None):
     init_db(app)
 
     # --------------------------------------------------------
-    # Register routes / blueprints
+    # Create Admin account if required
+    # --------------------------------------------------------
+
+    bootstrap_admin(app)
+
+    # --------------------------------------------------------
+    # Register application blueprints
     # --------------------------------------------------------
 
     register_blueprints(app)
@@ -129,18 +132,182 @@ def create_app(config_class=None):
     register_template_globals(app)
 
     # --------------------------------------------------------
-    # Register security / request settings
+    # Register security settings
     # --------------------------------------------------------
 
     register_security_settings(app)
 
     # --------------------------------------------------------
-    # Application health check
+    # Register health check
     # --------------------------------------------------------
 
     register_health_check(app)
 
     return app
+
+
+# ============================================================
+# ADMIN BOOTSTRAP
+# ============================================================
+
+def bootstrap_admin(app):
+    """
+    Create the initial Admin account using Render environment
+    variables.
+
+    Required environment variables:
+
+        ADMIN_EMAIL
+        ADMIN_PASSWORD
+
+    Optional:
+
+        ADMIN_NAME
+
+    IMPORTANT:
+    - Admin is created only when the email does not already exist.
+    - Existing Admin passwords are NOT overwritten.
+    - Existing accounts are upgraded to Admin only when their
+      email matches ADMIN_EMAIL.
+    - Admin accounts are automatically activated.
+    """
+
+    admin_email = os.environ.get(
+        "ADMIN_EMAIL",
+        "",
+    ).strip().lower()
+
+    admin_password = os.environ.get(
+        "ADMIN_PASSWORD",
+        "",
+    )
+
+    admin_name = os.environ.get(
+        "ADMIN_NAME",
+        "EduCertify Administrator",
+    ).strip()
+
+    # --------------------------------------------------------
+    # Environment variables not configured
+    # --------------------------------------------------------
+
+    if not admin_email or not admin_password:
+
+        print(
+            "[EduCertify] Admin bootstrap skipped."
+            " ADMIN_EMAIL or ADMIN_PASSWORD is missing."
+        )
+
+        return
+
+    try:
+
+        with app.app_context():
+
+            from database.database import db
+            from database.models import User
+            from utils.security import hash_password
+
+            # ------------------------------------------------
+            # Find account by email
+            # ------------------------------------------------
+
+            user = (
+                User.query
+                .filter_by(Email=admin_email)
+                .first()
+            )
+
+            # ------------------------------------------------
+            # Create new Admin
+            # ------------------------------------------------
+
+            if user is None:
+
+                user = User(
+                    FullName=(
+                        admin_name
+                        or "EduCertify Administrator"
+                    ),
+                    Email=admin_email,
+                    PasswordHash=hash_password(
+                        admin_password
+                    ),
+                    Role="Admin",
+                    IsActive=True,
+                )
+
+                db.session.add(user)
+                db.session.commit()
+
+                print(
+                    "[EduCertify] Admin account created:"
+                    f" {admin_email}"
+                )
+
+                return
+
+            # ------------------------------------------------
+            # Existing matching account
+            # ------------------------------------------------
+
+            changed = False
+
+            if user.Role != "Admin":
+
+                user.Role = "Admin"
+                changed = True
+
+            if not user.IsActive:
+
+                user.IsActive = True
+                changed = True
+
+            if (
+                not user.FullName
+                and admin_name
+            ):
+
+                user.FullName = admin_name
+                changed = True
+
+            if changed:
+
+                db.session.commit()
+
+                print(
+                    "[EduCertify] Existing Admin account "
+                    "updated."
+                )
+
+            else:
+
+                print(
+                    "[EduCertify] Admin account already "
+                    "exists."
+                )
+
+    except Exception as exc:
+
+        try:
+
+            from database.database import db
+
+            db.session.rollback()
+
+        except Exception:
+
+            pass
+
+        # ----------------------------------------------------
+        # Do not stop the entire application if Admin
+        # bootstrap fails.
+        # ----------------------------------------------------
+
+        print(
+            "[EduCertify] Admin bootstrap warning:"
+            f" {exc}"
+        )
 
 
 # ============================================================
@@ -151,8 +318,8 @@ def register_blueprints(app):
     """
     Register all EduCertify application blueprints.
 
-    Keeping imports inside this function helps avoid circular
-    imports during application initialization.
+    Imports are intentionally inside this function to reduce
+    circular-import problems during application startup.
     """
 
     from routes.public_routes import public_bp
@@ -166,7 +333,7 @@ def register_blueprints(app):
     from routes.api_routes import api_bp
 
     # --------------------------------------------------------
-    # Public routes
+    # Public
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -174,7 +341,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Authentication routes
+    # Authentication
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -182,7 +349,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Course discovery routes
+    # Course discovery
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -190,7 +357,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Student routes
+    # Student
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -198,7 +365,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Instructor routes
+    # Instructor
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -206,7 +373,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Admin routes
+    # Admin
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -214,7 +381,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Quiz routes
+    # Quiz
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -222,7 +389,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Certificate routes
+    # Certificate
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -230,7 +397,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # REST API routes
+    # REST API
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -246,25 +413,29 @@ def register_error_handlers(app):
     """
     Register global HTTP error handlers.
 
-    HTML pages are returned for normal browser requests.
+    Browser requests receive HTML error pages.
 
-    JSON responses are returned for /api/* requests.
+    /api/* requests receive JSON responses.
     """
+
+    # --------------------------------------------------------
+    # 404
+    # --------------------------------------------------------
 
     @app.errorhandler(404)
     def not_found(error):
-        """
-        Handle 404 Not Found errors.
-        """
 
         if request.path.startswith("/api/"):
 
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Resource not found.",
-                }
-            ), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Resource not found.",
+                    }
+                ),
+                404,
+            )
 
         return (
             render_template(
@@ -273,20 +444,24 @@ def register_error_handlers(app):
             404,
         )
 
+    # --------------------------------------------------------
+    # 403
+    # --------------------------------------------------------
+
     @app.errorhandler(403)
     def forbidden(error):
-        """
-        Handle 403 Forbidden errors.
-        """
 
         if request.path.startswith("/api/"):
 
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Access denied.",
-                }
-            ), 403
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Access denied.",
+                    }
+                ),
+                403,
+            )
 
         return (
             render_template(
@@ -295,29 +470,38 @@ def register_error_handlers(app):
             403,
         )
 
+    # --------------------------------------------------------
+    # 500
+    # --------------------------------------------------------
+
     @app.errorhandler(500)
     def server_error(error):
-        """
-        Handle internal server errors.
-        """
 
-        # Important: rollback any failed database transaction.
+        # ----------------------------------------------------
+        # Roll back failed database transaction.
+        # ----------------------------------------------------
+
         try:
+
             from database.database import db
 
             db.session.rollback()
 
         except Exception:
+
             pass
 
         if request.path.startswith("/api/"):
 
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Internal server error.",
-                }
-            ), 500
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Internal server error.",
+                    }
+                ),
+                500,
+            )
 
         return (
             render_template(
@@ -333,8 +517,8 @@ def register_error_handlers(app):
 
 def register_template_globals(app):
     """
-    Make common application information available
-    inside all Jinja templates.
+    Make common application information available inside
+    every Jinja template.
     """
 
     @app.context_processor
@@ -351,47 +535,34 @@ def register_template_globals(app):
 
 def register_security_settings(app):
     """
-    Apply security-related Flask settings.
+    Configure secure Flask session cookies.
 
-    Production settings are controlled primarily through
-    config.py / environment variables.
+    These settings are especially important for the deployed
+    HTTPS version on Render.
     """
 
     # --------------------------------------------------------
-    # Secure session cookies in production
-    # --------------------------------------------------------
-
-    if not app.debug:
-
-        app.config.setdefault(
-            "SESSION_COOKIE_HTTPONLY",
-            True,
-        )
-
-        app.config.setdefault(
-            "SESSION_COOKIE_SAMESITE",
-            "Lax",
-        )
-
-        app.config.setdefault(
-            "SESSION_COOKIE_SECURE",
-            True,
-        )
-
-    # --------------------------------------------------------
-    # Always protect session cookie from JavaScript
+    # Always protect cookies from JavaScript
     # --------------------------------------------------------
 
     app.config["SESSION_COOKIE_HTTPONLY"] = True
 
     # --------------------------------------------------------
-    # SameSite protection
+    # Prevent cross-site cookie sending in most situations
     # --------------------------------------------------------
 
     app.config.setdefault(
         "SESSION_COOKIE_SAMESITE",
         "Lax",
     )
+
+    # --------------------------------------------------------
+    # HTTPS production environment
+    # --------------------------------------------------------
+
+    if not app.debug:
+
+        app.config["SESSION_COOKIE_SECURE"] = True
 
 
 # ============================================================
@@ -400,29 +571,25 @@ def register_security_settings(app):
 
 def register_health_check(app):
     """
-    Register a lightweight health endpoint.
+    Lightweight endpoint used to verify that the application
+    is running correctly.
 
-    Render or external monitoring services can use:
-
+    URL:
         /health
-
-    Expected response:
-
-        {
-            "status": "ok",
-            "service": "EduCertify"
-        }
     """
 
     @app.route("/health")
     def health_check():
 
-        return jsonify(
-            {
-                "status": "ok",
-                "service": "EduCertify",
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "status": "ok",
+                    "service": "EduCertify",
+                }
+            ),
+            200,
+        )
 
 
 # ============================================================
@@ -438,8 +605,11 @@ app = create_app()
 
 if __name__ == "__main__":
 
-    # Render supplies PORT as an environment variable.
-    # For local development, use 5000.
+    # --------------------------------------------------------
+    # Render provides PORT automatically.
+    # Local development defaults to 5000.
+    # --------------------------------------------------------
+
     port = int(
         os.environ.get(
             "PORT",
@@ -452,16 +622,21 @@ if __name__ == "__main__":
         "0.0.0.0",
     )
 
+    # --------------------------------------------------------
+    # Only enable debug during local development.
+    # --------------------------------------------------------
+
+    flask_env = os.environ.get(
+        "FLASK_ENV",
+        "production",
+    ).lower()
+
     debug_mode = (
         app.config.get(
             "DEBUG",
             False,
         )
-        and os.environ.get(
-            "FLASK_ENV",
-            "development",
-        ).lower()
-        == "development"
+        and flask_env == "development"
     )
 
     app.run(
