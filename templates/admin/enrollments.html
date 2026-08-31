@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Enrollments{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'enrollments' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>All Enrollments</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Most recent 200 enrollments platform-wide.</p>
+
+    {% if enrollments %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Student</th><th>Course</th><th>Progress</th><th>Status</th><th>Enrolled</th></tr></thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+          <tr>
+            <td>{{ enrollment.student.FullName }}</td>
+            <td>{{ enrollment.course.Title }}</td>
+            <td>{{ enrollment.ProgressPercentage }}%</td>
+            <td><span class="ec-badge {{ 'ec-badge-success' if enrollment.Status == 'Completed' else 'ec-badge-info' }}">{{ enrollment.Status }}</span></td>
+            <td>{{ enrollment.EnrollmentDate.strftime('%d %b %Y') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-user-graduate"></i><p>No enrollments yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

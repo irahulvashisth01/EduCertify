@@ -1,0 +1,33 @@
+# Environment
+.env
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads (user-generated content)
+uploads/courses/*
+uploads/lessons/*
+uploads/certificates/*
+!uploads/courses/.gitkeep
+!uploads/lessons/.gitkeep
+!uploads/certificates/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

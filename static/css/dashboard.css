@@ -1,0 +1,92 @@
+/* ============================================================
+   EduCertify — Dashboard Layout (Student / Instructor / Admin)
+   ============================================================ */
+
+.ec-dash-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 200px);
+}
+
+.ec-dash-sidebar {
+  background: var(--ec-navy);
+  color: #cbd5e1;
+  padding: 24px 0;
+}
+.ec-dash-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease;
+}
+.ec-dash-sidebar a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.ec-dash-sidebar a.active { background: rgba(37,99,235,0.15); border-left-color: var(--ec-blue); color: #fff; }
+.ec-dash-sidebar i { width: 18px; text-align: center; }
+
+.ec-dash-content { padding: 30px 36px; background: var(--ec-gray-light); min-height: 100%; }
+
+.ec-stat-card {
+  background: #fff;
+  border-radius: var(--ec-radius);
+  padding: 22px;
+  box-shadow: var(--ec-shadow);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.ec-stat-icon {
+  width: 50px; height: 50px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  background: var(--ec-blue-light);
+  color: var(--ec-blue);
+}
+.ec-stat-value { font-size: 1.6rem; font-weight: 800; color: var(--ec-navy); font-family: var(--ec-font-heading); }
+.ec-stat-label { color: var(--ec-gray); font-size: 0.85rem; }
+
+.ec-table-wrapper { overflow-x: auto; }
+.ec-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: var(--ec-radius);
+  overflow: hidden;
+}
+.ec-table th {
+  background: var(--ec-gray-light);
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ec-gray);
+}
+.ec-table td { padding: 14px 16px; border-top: 1px solid var(--ec-border); font-size: 0.9rem; }
+
+.ec-dash-mobile-toggle { display: none; }
+
+@media (max-width: 900px) {
+  .ec-dash-layout { grid-template-columns: 1fr; }
+  .ec-dash-sidebar {
+    display: none;
+    width: 100%;
+  }
+  .ec-dash-sidebar.ec-open { display: block; }
+  .ec-dash-mobile-toggle {
+    display: block;
+    background: var(--ec-navy);
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    width: 100%;
+    text-align: left;
+    font-weight: 600;
+  }
+  .ec-dash-content { padding: 20px; }
+}

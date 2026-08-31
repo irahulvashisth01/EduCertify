@@ -1,0 +1,280 @@
+/* ============================================================
+   EduCertify — Global Design System
+   ============================================================ */
+
+:root {
+  --ec-navy: #0b1f3a;
+  --ec-navy-light: #142b4d;
+  --ec-blue: #2563eb;
+  --ec-blue-dark: #1d4ed8;
+  --ec-blue-light: #eaf1ff;
+  --ec-gray: #64748b;
+  --ec-gray-light: #f1f5f9;
+  --ec-border: #e2e8f0;
+  --ec-white: #ffffff;
+  --ec-success: #16a34a;
+  --ec-warning: #d97706;
+  --ec-danger: #dc2626;
+  --ec-info: #0284c7;
+
+  --ec-radius: 12px;
+  --ec-radius-sm: 8px;
+  --ec-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --ec-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
+
+  --ec-font-heading: 'Poppins', sans-serif;
+  --ec-font-body: 'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--ec-font-body);
+  color: #1e293b;
+  background: var(--ec-white);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ec-font-heading);
+  font-weight: 700;
+  color: var(--ec-navy);
+}
+
+a { text-decoration: none; color: inherit; }
+
+.ec-main { min-height: 60vh; }
+
+/* ---------------- Buttons ---------------- */
+.ec-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: var(--ec-radius-sm);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.ec-btn:hover { transform: translateY(-1px); }
+.ec-btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+
+.ec-btn-primary { background: var(--ec-blue); color: #fff; }
+.ec-btn-primary:hover { background: var(--ec-blue-dark); box-shadow: var(--ec-shadow); color: #fff; }
+
+.ec-btn-outline { background: transparent; border-color: var(--ec-border); color: var(--ec-navy); }
+.ec-btn-outline:hover { background: var(--ec-gray-light); color: var(--ec-navy); }
+
+.ec-btn-success { background: var(--ec-success); color: #fff; }
+.ec-btn-danger { background: var(--ec-danger); color: #fff; }
+.ec-btn-block { width: 100%; }
+
+/* ---------------- Navbar ---------------- */
+.ec-navbar {
+  background: var(--ec-navy);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: var(--ec-shadow);
+}
+.ec-navbar-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ec-brand {
+  font-family: var(--ec-font-heading);
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ec-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.ec-nav-links a {
+  color: #cbd5e1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.15s ease;
+}
+.ec-nav-links a:hover { color: #fff; }
+.ec-nav-user {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.ec-nav-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+/* ---------------- Flash alerts ---------------- */
+.ec-flash-container {
+  max-width: 900px;
+  margin: 16px auto 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ec-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: var(--ec-radius-sm);
+  font-weight: 500;
+  animation: ecSlideDown 0.3s ease;
+  box-shadow: var(--ec-shadow);
+}
+.ec-alert-success { background: #ecfdf5; color: #065f46; border-left: 4px solid var(--ec-success); }
+.ec-alert-error, .ec-alert-danger { background: #fef2f2; color: #991b1b; border-left: 4px solid var(--ec-danger); }
+.ec-alert-warning { background: #fffbeb; color: #92400e; border-left: 4px solid var(--ec-warning); }
+.ec-alert-info { background: #eff6ff; color: #1e40af; border-left: 4px solid var(--ec-info); }
+.ec-alert-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: inherit; opacity: 0.6; }
+.ec-alert-close:hover { opacity: 1; }
+
+@keyframes ecSlideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------------- Cards ---------------- */
+.ec-card {
+  background: #fff;
+  border: 1px solid var(--ec-border);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ec-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ec-shadow-lg);
+}
+
+/* ---------------- Badges ---------------- */
+.ec-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.ec-badge-success { background: #dcfce7; color: #166534; }
+.ec-badge-warning { background: #fef3c7; color: #92400e; }
+.ec-badge-danger { background: #fee2e2; color: #991b1b; }
+.ec-badge-info { background: #dbeafe; color: #1e40af; }
+.ec-badge-gray { background: var(--ec-gray-light); color: var(--ec-gray); }
+
+/* ---------------- Progress bars ---------------- */
+.ec-progress {
+  background: var(--ec-gray-light);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+.ec-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ec-blue), #60a5fa);
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+/* ---------------- Forms ---------------- */
+.ec-form-control {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--ec-border);
+  border-radius: var(--ec-radius-sm);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ec-form-control:focus {
+  outline: none;
+  border-color: var(--ec-blue);
+  box-shadow: 0 0 0 3px var(--ec-blue-light);
+}
+.ec-form-label { font-weight: 600; margin-bottom: 6px; display: block; color: var(--ec-navy); }
+.ec-form-error { color: var(--ec-danger); font-size: 0.85rem; margin-top: 4px; }
+
+/* ---------------- Footer ---------------- */
+.ec-footer { background: var(--ec-navy); color: #cbd5e1; margin-top: 60px; }
+.ec-footer-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 50px 24px 30px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 30px;
+}
+.ec-footer-col h4, .ec-footer-col h5 { color: #fff; margin-bottom: 14px; }
+.ec-footer-col a { display: block; color: #94a3b8; margin-bottom: 8px; font-size: 0.9rem; }
+.ec-footer-col a:hover { color: #fff; }
+.ec-footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+  padding: 18px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* ---------------- Animations ---------------- */
+.ec-fade-in { animation: ecFadeIn 0.5s ease both; }
+.ec-slide-up { animation: ecSlideUp 0.5s ease both; }
+@keyframes ecFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ecSlideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------------- Empty / loading states ---------------- */
+.ec-empty-state { text-align: center; padding: 60px 20px; color: var(--ec-gray); }
+.ec-empty-state i { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.5; }
+.ec-spinner {
+  width: 36px; height: 36px;
+  border: 4px solid var(--ec-gray-light);
+  border-top-color: var(--ec-blue);
+  border-radius: 50%;
+  animation: ecSpin 0.8s linear infinite;
+  margin: 0 auto;
+}
+@keyframes ecSpin { to { transform: rotate(360deg); } }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 900px) {
+  .ec-footer-inner { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .ec-nav-toggle { display: block; }
+  .ec-nav-links {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    background: var(--ec-navy);
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 24px;
+    gap: 14px;
+    display: none;
+  }
+  .ec-nav-links.ec-open { display: flex; }
+  .ec-footer-inner { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'overview' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Platform Overview</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 26px;">A snapshot of EduCertify right now.</p>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-users"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.total_users }}">0</div><div class="ec-stat-label">Total Users</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-user-graduate"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.students }}">0</div><div class="ec-stat-label">Students</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.instructors }}">0</div><div class="ec-stat-label">Instructors</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-book"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.published_courses }}">0</div><div class="ec-stat-label">Published Courses</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.pending_courses }}">0</div><div class="ec-stat-label">Pending Review</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-user-plus"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.enrollments }}">0</div><div class="ec-stat-label">Enrollments</div></div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-award"></i></div>
+          <div><div class="ec-stat-value" data-count="{{ stats.certificates }}">0</div><div class="ec-stat-label">Certificates Issued</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h4>Recently Created Courses</h4>
+    {% if recent_courses %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Title</th><th>Instructor</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody>
+          {% for course in recent_courses %}
+          <tr>
+            <td>{{ course.Title }}</td>
+            <td>{{ course.instructor.FullName }}</td>
+            <td>
+              {% set badge_map = {'Draft': 'ec-badge-gray', 'Pending': 'ec-badge-warning', 'Published': 'ec-badge-success', 'Rejected': 'ec-badge-danger', 'Archived': 'ec-badge-gray'} %}
+              <span class="ec-badge {{ badge_map.get(course.Status, 'ec-badge-gray') }}">{{ course.Status }}</span>
+            </td>
+            <td>{{ course.CreatedAt.strftime('%d %b %Y') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-book"></i><p>No courses created yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<div class="container ec-fade-in" style="max-width: 860px; padding: 60px 20px;">
+  <h1>About EduCertify</h1>
+  <p style="color: var(--ec-gray); font-size: 1.05rem; line-height: 1.7; margin-top: 16px;">
+    EduCertify is an online learning and certification platform built to help students gain
+    real, verifiable skills through structured courses, hands-on lessons, and assessments.
+    Instructors design courses with modules, lessons, and quizzes, while our verification
+    system ensures every certificate issued can be checked for authenticity — instantly,
+    without needing an account.
+  </p>
+  <div class="row mt-4" style="margin-top: 40px;">
+    <div class="col-md-4 mb-3">
+      <div class="ec-card p-4">
+        <i class="fa-solid fa-book-open" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
+        <h5 class="mt-3">Structured Learning</h5>
+        <p style="color: var(--ec-gray); font-size: 0.9rem;">Courses broken into modules and lessons with clear progress tracking.</p>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="ec-card p-4">
+        <i class="fa-solid fa-clipboard-check" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
+        <h5 class="mt-3">Real Assessments</h5>
+        <p style="color: var(--ec-gray); font-size: 0.9rem;">Quizzes and final assessments that verify actual understanding.</p>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="ec-card p-4">
+        <i class="fa-solid fa-award" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
+        <h5 class="mt-3">Verifiable Certificates</h5>
+        <p style="color: var(--ec-gray); font-size: 0.9rem;">Every certificate has a unique ID and QR code anyone can verify.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

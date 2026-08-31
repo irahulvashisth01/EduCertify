@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Manage Categories{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'categories' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Categories</h2>
+
+    <div class="ec-card p-4 mb-4" style="max-width: 480px;">
+      <h6>Add New Category</h6>
+      <form method="POST" action="{{ url_for('admin.categories') }}">
+        <div class="mb-2">
+          <input type="text" name="name" class="ec-form-control" placeholder="Category name" required>
+        </div>
+        <div class="mb-2">
+          <textarea name="description" class="ec-form-control" rows="2" placeholder="Description (optional)"></textarea>
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary ec-btn-sm">Add Category</button>
+      </form>
+    </div>
+
+    {% if categories %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Name</th><th>Courses</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr>
+            <td>{{ cat.Name }}</td>
+            <td>{{ cat.courses|length }}</td>
+            <td>{% if cat.IsActive %}<span class="ec-badge ec-badge-success">Active</span>{% else %}<span class="ec-badge ec-badge-gray">Inactive</span>{% endif %}</td>
+            <td>
+              <form method="POST" action="{{ url_for('admin.toggle_category', category_id=cat.CategoryID) }}">
+                <button type="submit" class="ec-btn ec-btn-sm ec-btn-outline">{{ 'Deactivate' if cat.IsActive else 'Activate' }}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-tags"></i><p>No categories yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Certificates{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/certificate.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'certificates' %}
+  {% include "student/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>My Certificates</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Download and share your earned certificates.</p>
+
+    {% if eligible_courses %}
+    <div class="ec-card p-3 mb-4" style="border-left: 4px solid var(--ec-success);">
+      <h6><i class="fa-solid fa-circle-check" style="color: var(--ec-success);"></i> Ready to generate</h6>
+      {% for course in eligible_courses %}
+      <div class="d-flex justify-content-between align-items-center" style="display:flex; padding: 8px 0; border-top: 1px solid var(--ec-border);">
+        <span>{{ course.Title }}</span>
+        <form method="POST" action="{{ url_for('student.generate_certificate', course_id=course.CourseID) }}">
+          <button type="submit" class="ec-btn ec-btn-success ec-btn-sm">Generate Certificate</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if certificates %}
+    <div class="row g-4">
+      {% for cert in certificates %}
+      <div class="col-md-4">
+        <div class="ec-cert-card">
+          <i class="fa-solid fa-award" style="font-size: 1.8rem; color: var(--ec-blue);"></i>
+          <h6 style="margin-top: 10px;">{{ cert.course.Title }}</h6>
+          <p style="font-size: 0.85rem; color: var(--ec-gray);">Score: {{ cert.FinalScore }}% &middot; {{ cert.IssueDate.strftime('%d %b %Y') }}</p>
+          <span class="ec-cert-number">{{ cert.CertificateNumber }}</span>
+          <div style="margin-top: 6px;">
+            {% if cert.Status == 'Valid' %}
+              <span class="ec-badge ec-badge-success">Valid</span>
+            {% else %}
+              <span class="ec-badge ec-badge-danger">Revoked</span>
+            {% endif %}
+          </div>
+          <a href="{{ url_for('student.download_certificate', certificate_id=cert.CertificateID) }}" class="ec-btn ec-btn-primary ec-btn-sm ec-btn-block mt-3">
+            <i class="fa-solid fa-download"></i> Download PDF
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-award"></i>
+      <p>No certificates yet. Complete a course to earn one!</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

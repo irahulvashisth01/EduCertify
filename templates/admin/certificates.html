@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Certificates{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'certificates' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Issued Certificates</h2>
+
+    {% if certificates %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Certificate ID</th><th>Student</th><th>Course</th><th>Score</th><th>Issued</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for cert in certificates %}
+          <tr>
+            <td style="font-family: monospace;">{{ cert.CertificateNumber }}</td>
+            <td>{{ cert.student.FullName }}</td>
+            <td>{{ cert.course.Title }}</td>
+            <td>{{ cert.FinalScore }}%</td>
+            <td>{{ cert.IssueDate.strftime('%d %b %Y') }}</td>
+            <td>
+              {% if cert.Status == 'Valid' %}<span class="ec-badge ec-badge-success">Valid</span>
+              {% else %}<span class="ec-badge ec-badge-danger">Revoked</span>{% endif %}
+            </td>
+            <td>
+              {% if cert.Status == 'Valid' %}
+              <form method="POST" action="{{ url_for('admin.revoke_certificate_view', certificate_id=cert.CertificateID) }}"
+                    onsubmit="return confirm('Revoke this certificate? This cannot be undone.');">
+                <button type="submit" class="ec-btn ec-btn-danger ec-btn-sm">Revoke</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-award"></i><p>No certificates issued yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

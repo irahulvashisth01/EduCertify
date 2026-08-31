@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ course.Title }} - Learning{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/courses.css') }}">{% endblock %}
+
+{% block content %}
+<div style="background: var(--ec-navy); color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <h5 style="color: #fff; margin: 0;">{{ course.Title }}</h5>
+    <div class="ec-progress" style="width: 220px; margin-top: 6px;">
+      <div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div>
+    </div>
+    <span style="font-size: 0.8rem; color: #cbd5e1;">{{ enrollment.ProgressPercentage }}% complete &middot; {{ completed_ids|length }} of {{ course.total_lessons }} lessons</span>
+  </div>
+  <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-btn ec-btn-outline ec-btn-sm" style="border-color: rgba(255,255,255,0.3); color: #fff;">
+    <i class="fa-solid fa-arrow-left"></i> Back to Course
+  </a>
+</div>
+
+<div class="ec-learn-layout">
+  <aside class="ec-learn-sidebar">
+    {% for module in course.modules %}
+      <div class="ec-learn-module-title">
+        {{ module.Title }}
+        <span style="float: right; font-weight: 500; text-transform: none;">
+          {{ module_progress[module.ModuleID].completed }}/{{ module_progress[module.ModuleID].total }}
+        </span>
+      </div>
+      {% for lesson in module.lessons %}
+        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=lesson.LessonID) }}"
+           class="ec-learn-lesson {% if lesson.LessonID == current_lesson.LessonID %}active{% endif %}">
+          {% if lesson.LessonID in completed_ids %}
+            <i class="fa-solid fa-circle-check"></i>
+          {% elif lesson.LessonID == current_lesson.LessonID %}
+            <i class="fa-solid fa-play"></i>
+          {% else %}
+            <i class="fa-regular fa-circle"></i>
+          {% endif %}
+          <span>{{ lesson.Title }}</span>
+        </a>
+      {% endfor %}
+    {% endfor %}
+  </aside>
+
+  <div class="ec-learn-content ec-fade-in">
+    <h3>{{ current_lesson.Title }}</h3>
+    <p style="color: var(--ec-gray);">{{ current_lesson.Description or "" }}</p>
+
+    {% if current_lesson.VideoURL %}
+    <div class="ec-learn-video">
+      <iframe src="{{ current_lesson.VideoURL }}" allowfullscreen title="{{ current_lesson.Title }}"></iframe>
+    </div>
+    {% endif %}
+
+    {% if current_lesson.Content %}
+    <div style="line-height: 1.8; color: #334155;">
+      {{ current_lesson.Content | safe }}
+    </div>
+    {% endif %}
+
+    {% if current_lesson.ResourceURL %}
+    <a href="{{ current_lesson.ResourceURL }}" target="_blank" class="ec-btn ec-btn-outline ec-btn-sm mt-3">
+      <i class="fa-solid fa-file-arrow-down"></i> Download Resource
+    </a>
+    {% endif %}
+
+    <div class="mt-4" style="margin-top: 26px;">
+      {% if current_lesson.LessonID in completed_ids %}
+        <span class="ec-badge ec-badge-success"><i class="fa-solid fa-check"></i> Completed</span>
+      {% else %}
+        <button class="ec-btn ec-btn-success" id="markCompleteBtn" data-lesson-id="{{ current_lesson.LessonID }}">
+          <i class="fa-solid fa-check"></i> Mark Complete
+        </button>
+      {% endif %}
+    </div>
+
+    <div class="ec-learn-nav-buttons">
+      {% if prev_lesson %}
+        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=prev_lesson.LessonID) }}" class="ec-btn ec-btn-outline">
+          <i class="fa-solid fa-arrow-left"></i> Previous
+        </a>
+      {% else %}<span></span>{% endif %}
+
+      {% if next_lesson %}
+        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=next_lesson.LessonID) }}" class="ec-btn ec-btn-primary">
+          Next <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      {% else %}
+        <a href="{{ url_for('student.certificates') }}" class="ec-btn ec-btn-primary">
+          <i class="fa-solid fa-award"></i> Finish Course
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const btn = document.getElementById("markCompleteBtn");
+  if (!btn) return;
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ec-spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;"></span> Saving...';
+    const lessonId = btn.dataset.lessonId;
+    const result = await ecFetch(`/api/progress/${lessonId}`, { method: "POST" });
+    if (result.success) {
+      window.location.reload();
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Mark Complete';
+      alert(result.message || "Something went wrong.");
+    }
+  });
+});
+</script>
+{% endblock %}

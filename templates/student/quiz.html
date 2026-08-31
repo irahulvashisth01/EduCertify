@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Quizzes{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'quizzes' %}
+  {% include "student/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+
+    {# ============ MODE 1: Quiz listing ============ #}
+    {% if quiz_list is defined and quiz is none %}
+      <h2>My Quizzes</h2>
+      <p style="color: var(--ec-gray); margin-bottom: 24px;">Quizzes from all your enrolled courses.</p>
+
+      {% if quiz_list %}
+      <div class="ec-table-wrapper">
+        <table class="ec-table">
+          <thead>
+            <tr><th>Quiz</th><th>Course</th><th>Best Score</th><th>Status</th><th>Attempts Left</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for item in quiz_list %}
+            <tr>
+              <td>{{ item.quiz.Title }}</td>
+              <td>{{ item.quiz.course.Title }}</td>
+              <td>{% if item.best_attempt %}{{ item.best_attempt.Percentage }}%{% else %}&mdash;{% endif %}</td>
+              <td>
+                {% if item.best_attempt and item.best_attempt.Passed %}
+                  <span class="ec-badge ec-badge-success">Passed</span>
+                {% elif item.best_attempt %}
+                  <span class="ec-badge ec-badge-danger">Failed</span>
+                {% else %}
+                  <span class="ec-badge ec-badge-gray">Not Attempted</span>
+                {% endif %}
+              </td>
+              <td>{{ item.remaining }}</td>
+              <td><a href="{{ url_for('student.quiz_page', quiz_id=item.quiz.QuizID) }}" class="ec-btn ec-btn-outline ec-btn-sm">Open</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="ec-empty-state">
+        <i class="fa-solid fa-clipboard-question"></i>
+        <p>No quizzes available yet. Enroll in a course to get started.</p>
+      </div>
+      {% endif %}
+
+    {# ============ MODE 2: Result screen ============ #}
+    {% elif result_attempt is defined and result_attempt %}
+      <div class="ec-quiz-card text-center">
+        <h3>{{ result_attempt.quiz.Title }}</h3>
+        <div class="ec-quiz-result-score {{ 'passed' if result_attempt.Passed else 'failed' }}">
+          {{ result_attempt.Percentage }}%
+        </div>
+        <p style="color: var(--ec-gray);">Score: {{ result_attempt.Score }} points</p>
+        {% if result_attempt.Passed %}
+          <span class="ec-badge ec-badge-success" style="font-size: 0.9rem;">PASSED</span>
+        {% else %}
+          <span class="ec-badge ec-badge-danger" style="font-size: 0.9rem;">FAILED</span>
+        {% endif %}
+
+        <div class="mt-4" style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+          {% if result_attempt.Passed %}
+            <a href="{{ url_for('student.learn', course_id=result_attempt.quiz.CourseID) }}" class="ec-btn ec-btn-primary">Continue Course</a>
+          {% else %}
+            <a href="{{ url_for('student.quiz_page', quiz_id=result_attempt.QuizID) }}" class="ec-btn ec-btn-primary">Retry Quiz</a>
+          {% endif %}
+          <a href="{{ url_for('student.quizzes') }}" class="ec-btn ec-btn-outline">Back to Quizzes</a>
+        </div>
+      </div>
+
+    {# ============ MODE 3: Quiz taking screen ============ #}
+    {% elif quiz %}
+      <div id="quizContainer">
+        <div id="quizStartScreen" class="ec-quiz-card text-center">
+          <h3>{{ quiz.Title }}</h3>
+          <p style="color: var(--ec-gray);">{{ quiz.Description or "" }}</p>
+          <ul style="list-style: none; padding: 0; color: var(--ec-gray); font-size: 0.9rem; margin: 20px 0;">
+            <li>Passing Score: {{ quiz.PassingScore }}%</li>
+            <li>Questions: {{ quiz.questions|length }}</li>
+            {% if quiz.TimeLimit %}<li>Time Limit: {{ quiz.TimeLimit }} minutes</li>{% endif %}
+            <li>Attempts Remaining: {{ remaining_attempts }}</li>
+          </ul>
+
+          {% if best_attempt %}
+          <p style="color: var(--ec-gray); font-size: 0.9rem;">
+            Best score so far: <strong>{{ best_attempt.Percentage }}%</strong>
+            ({{ "Passed" if best_attempt.Passed else "Failed" }})
+          </p>
+          {% endif %}
+
+          {% if remaining_attempts and remaining_attempts > 0 %}
+            <button id="startQuizBtn" data-quiz-id="{{ quiz.QuizID }}" class="ec-btn ec-btn-primary">Start Quiz</button>
+          {% else %}
+            <p style="color: var(--ec-danger);">You have no attempts remaining for this quiz.</p>
+          {% endif %}
+        </div>
+
+        <div id="quizQuestionScreen" class="ec-quiz-card" style="display: none;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span id="quizProgressText" style="color: var(--ec-gray); font-weight: 600;"></span>
+            {% if quiz.TimeLimit %}
+            <span class="ec-quiz-timer" id="quizTimer"><i class="fa-regular fa-clock"></i> --:--</span>
+            {% endif %}
+          </div>
+
+          <div class="ec-quiz-progress-dots" id="quizDots"></div>
+
+          <h5 id="quizQuestionText"></h5>
+          <div id="quizOptions" class="mt-3"></div>
+
+          <div class="d-flex justify-content-between mt-4" style="margin-top: 24px;">
+            <button id="prevQuestionBtn" class="ec-btn ec-btn-outline">Previous</button>
+            <button id="nextQuestionBtn" class="ec-btn ec-btn-primary">Next</button>
+            <button id="submitQuizBtn" class="ec-btn ec-btn-success" style="display: none;">Submit Quiz</button>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if quiz %}<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>{% endif %}
+{% endblock %}

@@ -1,0 +1,32 @@
+<button class="ec-dash-mobile-toggle" id="dashSidebarToggle">
+  <i class="fa-solid fa-bars"></i> Menu
+</button>
+<aside class="ec-dash-sidebar" id="dashSidebar">
+  <a href="{{ url_for('admin.dashboard') }}" class="{% if active_page == 'overview' %}active{% endif %}">
+    <i class="fa-solid fa-gauge"></i> Overview
+  </a>
+  <a href="{{ url_for('admin.users') }}" class="{% if active_page == 'users' %}active{% endif %}">
+    <i class="fa-solid fa-users"></i> Users
+  </a>
+  <a href="{{ url_for('admin.courses') }}" class="{% if active_page == 'courses' %}active{% endif %}">
+    <i class="fa-solid fa-book"></i> Courses
+  </a>
+  <a href="{{ url_for('admin.categories') }}" class="{% if active_page == 'categories' %}active{% endif %}">
+    <i class="fa-solid fa-tags"></i> Categories
+  </a>
+  <a href="{{ url_for('admin.enrollments') }}" class="{% if active_page == 'enrollments' %}active{% endif %}">
+    <i class="fa-solid fa-user-graduate"></i> Enrollments
+  </a>
+  <a href="{{ url_for('admin.certificates') }}" class="{% if active_page == 'certificates' %}active{% endif %}">
+    <i class="fa-solid fa-award"></i> Certificates
+  </a>
+  <a href="{{ url_for('admin.reports') }}" class="{% if active_page == 'reports' %}active{% endif %}">
+    <i class="fa-solid fa-chart-pie"></i> Reports
+  </a>
+  <a href="{{ url_for('admin.settings') }}" class="{% if active_page == 'settings' %}active{% endif %}">
+    <i class="fa-solid fa-gear"></i> Settings
+  </a>
+  <a href="{{ url_for('auth.logout') }}">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+  </a>
+</aside>

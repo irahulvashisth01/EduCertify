@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'analytics' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Course Analytics</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Performance breakdown for each of your courses.</p>
+
+    {% if course_stats %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead>
+          <tr><th>Course</th><th>Students</th><th>Completed</th><th>Completion Rate</th><th>Avg Quiz Score</th><th>Avg Rating</th></tr>
+        </thead>
+        <tbody>
+          {% for stat in course_stats %}
+          <tr>
+            <td>{{ stat.course.Title }}</td>
+            <td>{{ stat.total_students }}</td>
+            <td>{{ stat.completed }}</td>
+            <td>{{ stat.completion_rate }}%</td>
+            <td>{{ stat.avg_quiz_score }}%</td>
+            <td><i class="fa-solid fa-star" style="color: #f59e0b;"></i> {{ stat.avg_rating }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-chart-line"></i>
+      <p>No analytics available yet. Create and publish a course to see data here.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

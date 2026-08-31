@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<div class="container text-center ec-fade-in" style="padding: 100px 20px;">
+  <div style="font-size: 5rem; font-weight: 800; color: var(--ec-danger); font-family: var(--ec-font-heading);">500</div>
+  <h2 style="margin-top: 10px;">Something Went Wrong</h2>
+  <p style="color: var(--ec-gray); max-width: 480px; margin: 12px auto 28px;">
+    An unexpected error occurred on our end. Please try again shortly.
+  </p>
+  <a href="{{ url_for('public.home') }}" class="ec-btn ec-btn-primary">
+    <i class="fa-solid fa-house"></i> Back to Home
+  </a>
+</div>
+{% endblock %}

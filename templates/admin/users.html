@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'users' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Manage Users</h2>
+
+    <div class="mb-3" style="display:flex; gap: 10px;">
+      <a href="{{ url_for('admin.users') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if not role_filter else 'ec-btn-outline' }}">All</a>
+      <a href="{{ url_for('admin.users', role='Student') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if role_filter == 'Student' else 'ec-btn-outline' }}">Students</a>
+      <a href="{{ url_for('admin.users', role='Instructor') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if role_filter == 'Instructor' else 'ec-btn-outline' }}">Instructors</a>
+      <a href="{{ url_for('admin.users', role='Admin') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if role_filter == 'Admin' else 'ec-btn-outline' }}">Admins</a>
+    </div>
+
+    {% if users %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td>{{ user.FullName }}</td>
+            <td>{{ user.Email }}</td>
+            <td><span class="ec-badge ec-badge-info">{{ user.Role }}</span></td>
+            <td>
+              {% if user.IsActive %}<span class="ec-badge ec-badge-success">Active</span>
+              {% else %}<span class="ec-badge ec-badge-danger">Deactivated</span>{% endif %}
+            </td>
+            <td>{{ user.CreatedAt.strftime('%d %b %Y') }}</td>
+            <td>
+              {% if user.Role != 'Admin' %}
+              <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.UserID) }}">
+                <button type="submit" class="ec-btn ec-btn-sm {{ 'ec-btn-outline' if user.IsActive else 'ec-btn-success' }}">
+                  {{ 'Deactivate' if user.IsActive else 'Activate' }}
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-users"></i><p>No users found.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

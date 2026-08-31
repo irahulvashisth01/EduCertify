@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Manage Courses{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Manage Courses</h2>
+
+    <div class="mb-3" style="display:flex; gap: 10px; flex-wrap: wrap;">
+      <a href="{{ url_for('admin.courses') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if not status_filter else 'ec-btn-outline' }}">All</a>
+      <a href="{{ url_for('admin.courses', status='Pending') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'Pending' else 'ec-btn-outline' }}">Pending</a>
+      <a href="{{ url_for('admin.courses', status='Published') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'Published' else 'ec-btn-outline' }}">Published</a>
+      <a href="{{ url_for('admin.courses', status='Rejected') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'Rejected' else 'ec-btn-outline' }}">Rejected</a>
+      <a href="{{ url_for('admin.courses', status='Draft') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'Draft' else 'ec-btn-outline' }}">Draft</a>
+    </div>
+
+    {% if courses %}
+    {% for course in courses %}
+    <div class="ec-card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-start" style="display:flex; flex-wrap: wrap; gap: 10px;">
+        <div>
+          {% set badge_map = {'Draft': 'ec-badge-gray', 'Pending': 'ec-badge-warning', 'Published': 'ec-badge-success', 'Rejected': 'ec-badge-danger', 'Archived': 'ec-badge-gray'} %}
+          <span class="ec-badge {{ badge_map.get(course.Status, 'ec-badge-gray') }}">{{ course.Status }}</span>
+          <h6 style="margin-top: 6px;">{{ course.Title }}</h6>
+          <p style="color: var(--ec-gray); font-size: 0.85rem; margin: 0;">
+            By {{ course.instructor.FullName }} &middot; {{ course.category.Name }} &middot; {{ course.modules|length }} modules
+          </p>
+        </div>
+
+        {% if course.Status == 'Pending' %}
+        <div style="display:flex; gap: 8px; align-items: flex-start;">
+          <form method="POST" action="{{ url_for('admin.approve_course', course_id=course.CourseID) }}">
+            <button type="submit" class="ec-btn ec-btn-success ec-btn-sm">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.reject_course', course_id=course.CourseID) }}" style="display:flex; gap: 6px;">
+            <input type="text" name="reason" class="ec-form-control" placeholder="Rejection reason" style="width: 200px; padding: 6px 10px; font-size: 0.85rem;">
+            <button type="submit" class="ec-btn ec-btn-danger ec-btn-sm">Reject</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="ec-empty-state"><i class="fa-solid fa-book"></i><p>No courses found for this filter.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

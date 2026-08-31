@@ -1,0 +1,47 @@
+/* ============================================================
+   EduCertify — Certificate Display & Verification
+   ============================================================ */
+
+.ec-cert-card {
+  background: linear-gradient(135deg, #ffffff 0%, var(--ec-blue-light) 100%);
+  border: 1px solid var(--ec-border);
+  border-radius: var(--ec-radius);
+  padding: 22px;
+  box-shadow: var(--ec-shadow);
+}
+.ec-cert-number {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--ec-navy);
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  border: 1px dashed var(--ec-border);
+}
+
+.ec-verify-result {
+  border-radius: var(--ec-radius);
+  padding: 30px;
+  text-align: center;
+  margin-top: 24px;
+}
+.ec-verify-valid { background: #ecfdf5; border: 2px solid var(--ec-success); }
+.ec-verify-invalid { background: #fef2f2; border: 2px solid var(--ec-danger); }
+.ec-verify-revoked { background: #fffbeb; border: 2px solid var(--ec-warning); }
+
+.ec-verify-icon { font-size: 3rem; margin-bottom: 10px; }
+.ec-verify-icon.valid { color: var(--ec-success); }
+.ec-verify-icon.invalid { color: var(--ec-danger); }
+.ec-verify-icon.revoked { color: var(--ec-warning); }
+
+.ec-verify-details {
+  text-align: left;
+  max-width: 400px;
+  margin: 20px auto 0;
+  background: #fff;
+  border-radius: var(--ec-radius-sm);
+  padding: 18px;
+}
+.ec-verify-details dt { font-size: 0.8rem; color: var(--ec-gray); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 10px; }
+.ec-verify-details dd { font-size: 1rem; font-weight: 600; color: var(--ec-navy); margin: 2px 0 0; }

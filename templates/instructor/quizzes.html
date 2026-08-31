@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Quizzes - {{ course.Title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <a href="{{ url_for('instructor.edit_course', course_id=course.CourseID) }}" style="color: var(--ec-blue); font-size: 0.9rem;">
+      <i class="fa-solid fa-arrow-left"></i> Back to {{ course.Title }}
+    </a>
+    <h2 style="margin-top: 10px;">Quizzes</h2>
+
+    <div class="ec-card p-4 mb-4" style="max-width: 640px;">
+      <h6>Create New Quiz</h6>
+      <form method="POST" action="{{ url_for('instructor.quizzes', course_id=course.CourseID) }}">
+        <div class="mb-2">
+          <input type="text" name="title" class="ec-form-control" placeholder="Quiz title" required>
+        </div>
+        <div class="mb-2">
+          <textarea name="description" class="ec-form-control" rows="2" placeholder="Description (optional)"></textarea>
+        </div>
+        <div class="mb-2">
+          <select name="module_id" class="ec-form-control">
+            <option value="">Not tied to a specific module</option>
+            {% for module in course.modules %}
+            <option value="{{ module.ModuleID }}">{{ module.Title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="ec-form-label" style="font-size: 0.8rem;">Passing Score (%)</label>
+            <input type="number" name="passing_score" class="ec-form-control" min="1" max="100" value="70">
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label" style="font-size: 0.8rem;">Time Limit (min)</label>
+            <input type="number" name="time_limit" class="ec-form-control" min="1" placeholder="No limit">
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label" style="font-size: 0.8rem;">Attempts Allowed</label>
+            <input type="number" name="attempts_allowed" class="ec-form-control" min="1" value="3">
+          </div>
+        </div>
+        <div class="mt-2" style="display:flex; align-items:center; gap: 8px;">
+          <input type="checkbox" name="is_final_assessment" id="isFinal">
+          <label for="isFinal" style="margin:0;">This is the course's final assessment</label>
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary ec-btn-sm mt-2">Create Quiz</button>
+      </form>
+    </div>
+
+    {% if course.quizzes %}
+      {% for quiz in course.quizzes %}
+      <div class="ec-card p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center" style="display:flex;">
+          <div>
+            <h6>{{ quiz.Title }} {% if quiz.IsFinalAssessment %}<span class="ec-badge ec-badge-info">Final Assessment</span>{% endif %}</h6>
+            <p style="color: var(--ec-gray); font-size: 0.85rem; margin: 0;">
+              {{ quiz.questions|length }} questions &middot; Pass: {{ quiz.PassingScore }}% &middot; {{ quiz.AttemptsAllowed }} attempts allowed
+            </p>
+          </div>
+        </div>
+
+        <details class="mt-2">
+          <summary style="cursor: pointer; color: var(--ec-blue); font-size: 0.9rem;">Add Question</summary>
+          <form method="POST" action="{{ url_for('instructor.add_question_view', quiz_id=quiz.QuizID) }}" class="mt-2">
+            <textarea name="question_text" class="ec-form-control mb-2" rows="2" placeholder="Question text" required></textarea>
+            <div class="row g-2">
+              <div class="col-md-6"><input type="text" name="option_a" class="ec-form-control" placeholder="Option A" required></div>
+              <div class="col-md-6"><input type="text" name="option_b" class="ec-form-control" placeholder="Option B" required></div>
+              <div class="col-md-6 mt-2"><input type="text" name="option_c" class="ec-form-control" placeholder="Option C" required></div>
+              <div class="col-md-6 mt-2"><input type="text" name="option_d" class="ec-form-control" placeholder="Option D" required></div>
+            </div>
+            <div class="row g-2 mt-2">
+              <div class="col-md-6">
+                <select name="correct_option" class="ec-form-control" required>
+                  <option value="" disabled selected>Correct option</option>
+                  <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <input type="number" name="marks" class="ec-form-control" min="1" value="1" placeholder="Marks">
+              </div>
+            </div>
+            <button type="submit" class="ec-btn ec-btn-primary ec-btn-sm mt-2">Add Question</button>
+          </form>
+        </details>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-clipboard-question"></i>
+      <p>No quizzes yet. Create your first quiz above.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

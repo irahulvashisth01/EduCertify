@@ -1,0 +1,54 @@
+/* ============================================================
+   EduCertify — Quiz Engine UI
+   ============================================================ */
+
+.ec-quiz-card {
+  background: #fff;
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow);
+  padding: 30px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.ec-quiz-timer {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ec-navy);
+  background: var(--ec-gray-light);
+  padding: 8px 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ec-quiz-timer.ec-timer-low { color: var(--ec-danger); background: #fef2f2; }
+
+.ec-quiz-option {
+  display: block;
+  border: 1.5px solid var(--ec-border);
+  border-radius: var(--ec-radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ec-quiz-option:hover { border-color: var(--ec-blue); background: var(--ec-blue-light); }
+.ec-quiz-option input { margin-right: 10px; }
+.ec-quiz-option.selected { border-color: var(--ec-blue); background: var(--ec-blue-light); }
+
+.ec-quiz-progress-dots { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+.ec-quiz-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--ec-border);
+}
+.ec-quiz-dot.answered { background: var(--ec-blue); }
+.ec-quiz-dot.current { outline: 2px solid var(--ec-navy); outline-offset: 2px; }
+
+.ec-quiz-result-score {
+  font-size: 3rem;
+  font-weight: 800;
+  font-family: var(--ec-font-heading);
+}
+.ec-quiz-result-score.passed { color: var(--ec-success); }
+.ec-quiz-result-score.failed { color: var(--ec-danger); }

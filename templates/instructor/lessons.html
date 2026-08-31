@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Lessons - {{ module.Title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <a href="{{ url_for('instructor.modules', course_id=module.CourseID) }}" style="color: var(--ec-blue); font-size: 0.9rem;">
+      <i class="fa-solid fa-arrow-left"></i> Back to Modules
+    </a>
+    <h2 style="margin-top: 10px;">Lessons — {{ module.Title }}</h2>
+
+    <div class="ec-card p-4 mb-4" style="max-width: 640px;">
+      <h6>Add New Lesson</h6>
+      <form method="POST" action="{{ url_for('instructor.lessons', module_id=module.ModuleID) }}">
+        <div class="mb-2">
+          <input type="text" name="title" class="ec-form-control" placeholder="Lesson title" required>
+        </div>
+        <div class="mb-2">
+          <textarea name="description" class="ec-form-control" rows="2" placeholder="Short description"></textarea>
+        </div>
+        <div class="mb-2">
+          <textarea name="content" class="ec-form-control" rows="3" placeholder="Lesson text content (supports basic HTML)"></textarea>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <input type="url" name="video_url" class="ec-form-control" placeholder="Video embed URL (optional)">
+          </div>
+          <div class="col-md-6">
+            <input type="url" name="resource_url" class="ec-form-control" placeholder="Resource/download URL (optional)">
+          </div>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-md-6">
+            <input type="text" name="duration" class="ec-form-control" placeholder="Duration e.g. 12 min">
+          </div>
+          <div class="col-md-6 d-flex align-items-center" style="display:flex; align-items:center; gap: 8px;">
+            <input type="checkbox" name="is_preview" id="isPreview">
+            <label for="isPreview" style="margin: 0;">Allow as free preview</label>
+          </div>
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary ec-btn-sm mt-2">Add Lesson</button>
+      </form>
+    </div>
+
+    {% if module.lessons %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>#</th><th>Title</th><th>Duration</th><th>Preview</th></tr></thead>
+        <tbody>
+          {% for lesson in module.lessons %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ lesson.Title }}</td>
+            <td>{{ lesson.Duration or "&mdash;" }}</td>
+            <td>{% if lesson.IsPreview %}<span class="ec-badge ec-badge-info">Preview</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-video"></i>
+      <p>No lessons yet. Add your first lesson above.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

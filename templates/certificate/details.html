@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Certificate Details{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/certificate.css') }}">{% endblock %}
+
+{% block content %}
+<div class="container ec-fade-in" style="max-width: 560px; padding: 60px 20px;">
+  <div class="ec-cert-card text-center">
+    <i class="fa-solid fa-award" style="font-size: 2.4rem; color: var(--ec-blue);"></i>
+    <h3 style="margin-top: 12px;">{{ certificate.course.Title }}</h3>
+    <p style="color: var(--ec-gray);">Awarded to {{ certificate.student.FullName }}</p>
+    <span class="ec-cert-number">{{ certificate.CertificateNumber }}</span>
+
+    <dl class="ec-verify-details" style="margin-top: 20px;">
+      <dt>Final Score</dt><dd>{{ certificate.FinalScore }}%</dd>
+      <dt>Issue Date</dt><dd>{{ certificate.IssueDate.strftime('%d %B %Y') }}</dd>
+      <dt>Status</dt>
+      <dd style="color: {{ 'var(--ec-success)' if certificate.Status == 'Valid' else 'var(--ec-danger)' }};">{{ certificate.Status }}</dd>
+    </dl>
+
+    <a href="{{ url_for('certificate.verify', certificate_number=certificate.CertificateNumber) }}" class="ec-btn ec-btn-outline ec-btn-sm mt-3">
+      <i class="fa-solid fa-shield-halved"></i> View Public Verification
+    </a>
+  </div>
+</div>
+{% endblock %}

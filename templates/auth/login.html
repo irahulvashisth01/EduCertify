@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-auth-wrapper">
+  <div class="ec-auth-card ec-slide-up">
+    <div class="text-center mb-4">
+      <span style="font-size: 2rem;">🎓</span>
+      <h2>Welcome Back</h2>
+      <p style="color: var(--ec-gray);">Log in to continue your learning journey.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.login') }}" novalidate id="loginForm">
+      <div class="mb-3">
+        <label class="ec-form-label">Email</label>
+        <input type="email" name="email" class="ec-form-control" value="{{ email }}" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="ec-form-label">Password</label>
+        <input type="password" name="password" class="ec-form-control" required minlength="8">
+      </div>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 0.85rem; color: var(--ec-blue);">Forgot password?</a>
+      </div>
+      <button type="submit" class="ec-btn ec-btn-primary ec-btn-block">Login</button>
+    </form>
+
+    <p class="text-center mt-4" style="color: var(--ec-gray); font-size: 0.9rem;">
+      Don't have an account? <a href="{{ url_for('auth.register') }}" style="color: var(--ec-blue); font-weight: 600;">Sign up</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/auth.js') }}"></script>{% endblock %}

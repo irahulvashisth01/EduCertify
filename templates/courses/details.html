@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ course.Title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/courses.css') }}">{% endblock %}
+
+{% block content %}
+<section style="background: var(--ec-navy); color: #fff; padding: 50px 20px;">
+  <div class="container ec-fade-in" style="max-width: 1000px;">
+    <span class="ec-badge ec-badge-info">{{ course.Level }}</span>
+    <h1 style="color: #fff; margin-top: 14px;">{{ course.Title }}</h1>
+    <p style="color: #cbd5e1; max-width: 700px;">{{ course.ShortDescription }}</p>
+    <div style="display: flex; gap: 24px; margin-top: 18px; flex-wrap: wrap; font-size: 0.9rem; color: #cbd5e1;">
+      <span><i class="fa-solid fa-user"></i> {{ course.instructor.FullName }}</span>
+      <span><i class="fa-solid fa-layer-group"></i> {{ course.category.Name }}</span>
+      <span><i class="fa-solid fa-clock"></i> {{ course.Duration or "Self-paced" }}</span>
+      <span><i class="fa-solid fa-star" style="color: #f59e0b;"></i> {{ course.average_rating }} ({{ course.reviews|length }} reviews)</span>
+      <span><i class="fa-solid fa-book"></i> {{ course.total_lessons }} lessons</span>
+    </div>
+  </div>
+</section>
+
+<div class="container" style="max-width: 1000px; padding: 40px 20px;">
+  <div class="row g-4">
+    <div class="col-md-8">
+      <h3>About this course</h3>
+      <p style="color: var(--ec-gray); line-height: 1.7;">{{ course.Description or "No description provided yet." }}</p>
+
+      <h3 class="mt-4" style="margin-top: 30px;">Course Content</h3>
+      {% if course.modules %}
+        <div class="accordion" id="courseModules">
+          {% for module in course.modules %}
+          <div class="ec-card mb-3 p-3">
+            <h5>{{ loop.index }}. {{ module.Title }}</h5>
+            <p style="color: var(--ec-gray); font-size: 0.9rem;">{{ module.Description or "" }}</p>
+            <ul style="list-style: none; padding: 0; margin: 10px 0 0;">
+              {% for lesson in module.lessons %}
+              <li style="padding: 6px 0; border-top: 1px solid var(--ec-border); font-size: 0.9rem; display: flex; justify-content: space-between;">
+                <span><i class="fa-solid fa-circle-play" style="color: var(--ec-blue); margin-right: 8px;"></i>{{ lesson.Title }}
+                  {% if lesson.IsPreview %}<span class="ec-badge ec-badge-gray" style="margin-left: 6px;">Preview</span>{% endif %}
+                </span>
+                <span style="color: var(--ec-gray);">{{ lesson.Duration or "" }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p style="color: var(--ec-gray);">Course content is being prepared.</p>
+      {% endif %}
+    </div>
+
+    <div class="col-md-4">
+      <div class="ec-card p-4" style="position: sticky; top: 90px;">
+        <div class="ec-course-thumb" style="border-radius: var(--ec-radius); margin-bottom: 16px;">
+          {% if course.ThumbnailURL %}
+            <img src="{{ course.ThumbnailURL }}" alt="{{ course.Title }}">
+          {% else %}
+            <i class="fa-solid fa-book" style="font-size: 2.5rem; color: var(--ec-blue);"></i>
+          {% endif %}
+        </div>
+
+        <h4 style="color: var(--ec-blue);">{% if course.Price %}${{ "%.2f"|format(course.Price) }}{% else %}Free{% endif %}</h4>
+
+        {% if session.get('role') == 'Student' %}
+          {% if is_enrolled %}
+            <a href="{{ url_for('student.learn', course_id=course.CourseID) }}" class="ec-btn ec-btn-primary ec-btn-block mt-2">
+              <i class="fa-solid fa-play"></i> Continue Learning
+            </a>
+          {% else %}
+            <form method="POST" action="{{ url_for('student.enroll', course_id=course.CourseID) }}">
+              <button type="submit" class="ec-btn ec-btn-primary ec-btn-block mt-2">Enroll Now</button>
+            </form>
+          {% endif %}
+        {% elif session.get('user_id') %}
+          <p style="color: var(--ec-gray); font-size: 0.85rem; margin-top: 10px;">Only students can enroll in courses.</p>
+        {% else %}
+          <a href="{{ url_for('auth.login', next=request.path) }}" class="ec-btn ec-btn-primary ec-btn-block mt-2">Login to Enroll</a>
+        {% endif %}
+
+        <ul style="list-style: none; padding: 0; margin-top: 20px; font-size: 0.9rem; color: var(--ec-gray);">
+          <li style="padding: 6px 0;"><i class="fa-solid fa-check" style="color: var(--ec-success);"></i> {{ course.total_lessons }} lessons</li>
+          <li style="padding: 6px 0;"><i class="fa-solid fa-check" style="color: var(--ec-success);"></i> Certificate on completion</li>
+          <li style="padding: 6px 0;"><i class="fa-solid fa-check" style="color: var(--ec-success);"></i> Lifetime access</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

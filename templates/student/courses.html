@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "student/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>My Courses</h2>
+
+    <div class="mb-3" style="display:flex; gap: 10px;">
+      <a href="{{ url_for('student.courses', status='all') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'all' else 'ec-btn-outline' }}">All</a>
+      <a href="{{ url_for('student.courses', status='active') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'active' else 'ec-btn-outline' }}">Active</a>
+      <a href="{{ url_for('student.courses', status='completed') }}" class="ec-btn ec-btn-sm {{ 'ec-btn-primary' if status_filter == 'completed' else 'ec-btn-outline' }}">Completed</a>
+    </div>
+
+    {% if enrollments %}
+    <div class="row g-4">
+      {% for enrollment in enrollments %}
+      <div class="col-md-4">
+        <div class="ec-card p-3 h-100">
+          <span class="ec-badge {{ 'ec-badge-success' if enrollment.Status == 'Completed' else 'ec-badge-info' }}">{{ enrollment.Status }}</span>
+          <h6 style="margin-top: 10px;">{{ enrollment.course.Title }}</h6>
+          <div class="ec-progress" style="margin-top: 8px;">
+            <div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--ec-gray);">{{ enrollment.ProgressPercentage }}% complete</span>
+          <a href="{{ url_for('student.learn', course_id=enrollment.CourseID) }}" class="ec-btn ec-btn-primary ec-btn-sm ec-btn-block mt-3">
+            {% if enrollment.Status == 'Completed' %}Review Course{% else %}Continue Learning{% endif %}
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-book"></i>
+      <p>No courses found for this filter.</p>
+      <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-primary ec-btn-sm">Explore Courses</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

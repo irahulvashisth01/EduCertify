@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'reports' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Platform Reports</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Growth over the last 30 days.</p>
+
+    {% if new_users_30d is defined %}
+    <div class="row g-3 mb-4">
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-user-plus"></i></div>
+          <div><div class="ec-stat-value">{{ new_users_30d }}</div><div class="ec-stat-label">New Users (30d)</div></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-book-open"></i></div>
+          <div><div class="ec-stat-value">{{ new_enrollments_30d }}</div><div class="ec-stat-label">New Enrollments (30d)</div></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card"><div class="ec-stat-icon"><i class="fa-solid fa-award"></i></div>
+          <div><div class="ec-stat-value">{{ new_certificates_30d }}</div><div class="ec-stat-label">Certificates Issued (30d)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h4>Recently Published Courses</h4>
+    {% if top_courses %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Title</th><th>Instructor</th><th>Category</th><th>Rating</th></tr></thead>
+        <tbody>
+          {% for course in top_courses %}
+          <tr>
+            <td>{{ course.Title }}</td>
+            <td>{{ course.instructor.FullName }}</td>
+            <td>{{ course.category.Name }}</td>
+            <td><i class="fa-solid fa-star" style="color: #f59e0b;"></i> {{ course.average_rating }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if reviews is defined and reviews %}
+    <h4 class="mt-4" style="margin-top: 30px;">Recent Reviews</h4>
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Student</th><th>Course</th><th>Rating</th><th>Comment</th></tr></thead>
+        <tbody>
+          {% for review in reviews %}
+          <tr>
+            <td>{{ review.student.FullName }}</td>
+            <td>{{ review.course.Title }}</td>
+            <td>{{ review.Rating }} / 5</td>
+            <td>{{ review.Comment or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

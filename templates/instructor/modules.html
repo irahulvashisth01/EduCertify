@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Modules - {{ course.Title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <a href="{{ url_for('instructor.edit_course', course_id=course.CourseID) }}" style="color: var(--ec-blue); font-size: 0.9rem;">
+      <i class="fa-solid fa-arrow-left"></i> Back to {{ course.Title }}
+    </a>
+    <h2 style="margin-top: 10px;">Modules</h2>
+
+    <div class="ec-card p-4 mb-4" style="max-width: 500px;">
+      <h6>Add New Module</h6>
+      <form method="POST" action="{{ url_for('instructor.modules', course_id=course.CourseID) }}">
+        <div class="mb-2">
+          <input type="text" name="title" class="ec-form-control" placeholder="Module title" required>
+        </div>
+        <div class="mb-2">
+          <textarea name="description" class="ec-form-control" rows="2" placeholder="Description (optional)"></textarea>
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary ec-btn-sm">Add Module</button>
+      </form>
+    </div>
+
+    {% if course.modules %}
+      {% for module in course.modules %}
+      <div class="ec-card p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center" style="display:flex;">
+          <h6>{{ loop.index }}. {{ module.Title }}</h6>
+          <a href="{{ url_for('instructor.lessons', module_id=module.ModuleID) }}" class="ec-btn ec-btn-outline ec-btn-sm">
+            Manage Lessons ({{ module.lessons|length }})
+          </a>
+        </div>
+        <p style="color: var(--ec-gray); font-size: 0.85rem;">{{ module.Description or "" }}</p>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-layer-group"></i>
+      <p>No modules yet. Add your first module above.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

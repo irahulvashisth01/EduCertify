@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Manage {{ course.Title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-3" style="display:flex; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h2 style="margin-bottom: 4px;">{{ course.Title }}</h2>
+        {% set badge_map = {'Draft': 'ec-badge-gray', 'Pending': 'ec-badge-warning', 'Published': 'ec-badge-success', 'Rejected': 'ec-badge-danger', 'Archived': 'ec-badge-gray'} %}
+        <span class="ec-badge {{ badge_map.get(course.Status, 'ec-badge-gray') }}">{{ course.Status }}</span>
+      </div>
+      {% if course.Status == 'Draft' %}
+      <form id="submitCourseForm" method="POST" action="{{ url_for('instructor.submit_course', course_id=course.CourseID) }}">
+        <button type="submit" class="ec-btn ec-btn-success">Submit for Review</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if course.Status == 'Rejected' and course.RejectionReason %}
+    <div class="ec-alert ec-alert-warning" style="margin-bottom: 20px;">
+      <span><strong>Rejection feedback:</strong> {{ course.RejectionReason }}</span>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <a href="{{ url_for('instructor.modules', course_id=course.CourseID) }}" class="ec-card ec-card-hover d-block p-3 text-center">
+          <i class="fa-solid fa-layer-group" style="font-size: 1.4rem; color: var(--ec-blue);"></i>
+          <h6 style="margin-top: 8px;">Modules ({{ course.modules|length }})</h6>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{{ url_for('instructor.quizzes', course_id=course.CourseID) }}" class="ec-card ec-card-hover d-block p-3 text-center">
+          <i class="fa-solid fa-clipboard-question" style="font-size: 1.4rem; color: var(--ec-blue);"></i>
+          <h6 style="margin-top: 8px;">Quizzes ({{ course.quizzes|length }})</h6>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-card ec-card-hover d-block p-3 text-center">
+          <i class="fa-solid fa-eye" style="font-size: 1.4rem; color: var(--ec-blue);"></i>
+          <h6 style="margin-top: 8px;">Preview Course</h6>
+        </a>
+      </div>
+    </div>
+
+    <div class="ec-card p-4">
+      <h5>Course Details</h5>
+      <form method="POST" action="{{ url_for('instructor.edit_course', course_id=course.CourseID) }}">
+        <div class="mb-3">
+          <label class="ec-form-label">Course Title</label>
+          <input type="text" name="title" class="ec-form-control" value="{{ course.Title }}" required minlength="3">
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Category</label>
+          <select name="category_id" class="ec-form-control">
+            {% for cat in categories %}
+            <option value="{{ cat.CategoryID }}" {% if cat.CategoryID == course.CategoryID %}selected{% endif %}>{{ cat.Name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Short Description</label>
+          <input type="text" name="short_description" class="ec-form-control" value="{{ course.ShortDescription or '' }}" maxlength="300">
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Full Description</label>
+          <textarea name="description" class="ec-form-control" rows="4">{{ course.Description or '' }}</textarea>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="ec-form-label">Level</label>
+            <select name="level" class="ec-form-control">
+              <option value="Beginner" {% if course.Level == 'Beginner' %}selected{% endif %}>Beginner</option>
+              <option value="Intermediate" {% if course.Level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+              <option value="Advanced" {% if course.Level == 'Advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label">Duration</label>
+            <input type="text" name="duration" class="ec-form-control" value="{{ course.Duration or '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label">Price ($)</label>
+            <input type="number" name="price" class="ec-form-control" min="0" step="0.01" value="{{ course.Price }}">
+          </div>
+        </div>
+        <div class="mb-3 mt-3">
+          <label class="ec-form-label">Passing Score (%)</label>
+          <input type="number" name="passing_score" class="ec-form-control" min="1" max="100" value="{{ course.PassingScore }}">
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instructor.js') }}"></script>
+{% endblock %}

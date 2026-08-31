@@ -1,0 +1,26 @@
+<button class="ec-dash-mobile-toggle" id="dashSidebarToggle">
+  <i class="fa-solid fa-bars"></i> Menu
+</button>
+<aside class="ec-dash-sidebar" id="dashSidebar">
+  <a href="{{ url_for('student.dashboard') }}" class="{% if active_page == 'overview' %}active{% endif %}">
+    <i class="fa-solid fa-gauge"></i> Overview
+  </a>
+  <a href="{{ url_for('student.courses') }}" class="{% if active_page == 'courses' %}active{% endif %}">
+    <i class="fa-solid fa-book"></i> My Courses
+  </a>
+  <a href="{{ url_for('courses.index') }}" class="{% if active_page == 'explore' %}active{% endif %}">
+    <i class="fa-solid fa-compass"></i> Explore
+  </a>
+  <a href="{{ url_for('student.progress') }}" class="{% if active_page == 'progress' %}active{% endif %}">
+    <i class="fa-solid fa-chart-line"></i> Progress
+  </a>
+  <a href="{{ url_for('student.certificates') }}" class="{% if active_page == 'certificates' %}active{% endif %}">
+    <i class="fa-solid fa-award"></i> Certificates
+  </a>
+  <a href="{{ url_for('student.profile') }}" class="{% if active_page == 'profile' %}active{% endif %}">
+    <i class="fa-solid fa-user"></i> Profile
+  </a>
+  <a href="{{ url_for('auth.logout') }}">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+  </a>
+</aside>

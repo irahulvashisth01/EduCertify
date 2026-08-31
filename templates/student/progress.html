@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Progress{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'progress' %}
+  {% include "student/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Learning Progress</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Track how far you've come in each course.</p>
+
+    {% if enrollments %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead>
+          <tr><th>Course</th><th>Lessons Completed</th><th>Progress</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+          <tr>
+            <td>{{ enrollment.course.Title }}</td>
+            <td>{{ (enrollment.ProgressPercentage / 100 * enrollment.course.total_lessons) | round | int }} of {{ enrollment.course.total_lessons }}</td>
+            <td style="min-width: 180px;">
+              <div class="ec-progress">
+                <div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; color: var(--ec-gray);">{{ enrollment.ProgressPercentage }}%</span>
+            </td>
+            <td>
+              <span class="ec-badge {{ 'ec-badge-success' if enrollment.Status == 'Completed' else 'ec-badge-info' }}">{{ enrollment.Status }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-chart-line"></i>
+      <p>No progress to show yet. Enroll in a course to get started.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

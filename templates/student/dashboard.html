@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'overview' %}
+  {% include "student/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Welcome back, {{ session.get('user_name') }} 👋</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 26px;">Here's a snapshot of your learning journey.</p>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-book-open"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ active_count }}">0</div>
+            <div class="ec-stat-label">Active Courses</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ completed_count }}">0</div>
+            <div class="ec-stat-label">Completed Courses</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-award"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ certificate_count }}">0</div>
+            <div class="ec-stat-label">Certificates</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ avg_quiz_score }}" data-suffix="%">0</div>
+            <div class="ec-stat-label">Avg Quiz Score</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-8">
+        <h4>Continue Learning</h4>
+        {% if enrollments %}
+          {% for enrollment in enrollments[:5] %}
+          <div class="ec-card mb-3 p-3 d-flex flex-row align-items-center justify-content-between" style="display:flex;">
+            <div>
+              <h6 style="margin-bottom: 4px;">{{ enrollment.course.Title }}</h6>
+              <div class="ec-progress" style="width: 220px;">
+                <div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; color: var(--ec-gray);">{{ enrollment.ProgressPercentage }}% complete</span>
+            </div>
+            <a href="{{ url_for('student.learn', course_id=enrollment.CourseID) }}" class="ec-btn ec-btn-primary ec-btn-sm">
+              {% if enrollment.Status == 'Completed' %}Review{% else %}Continue{% endif %}
+            </a>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="ec-empty-state">
+            <i class="fa-solid fa-book"></i>
+            <p>You haven't enrolled in any courses yet.</p>
+            <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-primary ec-btn-sm">Explore Courses</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <h4>Notifications</h4>
+        {% if recent_notifications %}
+          {% for note in recent_notifications %}
+          <div class="ec-card mb-2 p-3">
+            <strong style="font-size: 0.9rem;">{{ note.Title }}</strong>
+            <p style="font-size: 0.85rem; color: var(--ec-gray); margin: 4px 0 0;">{{ note.Message }}</p>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="ec-empty-state" style="padding: 30px 10px;">
+            <i class="fa-regular fa-bell"></i>
+            <p style="font-size: 0.85rem;">No notifications yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

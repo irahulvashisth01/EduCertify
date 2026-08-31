@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Verify Certificate{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/certificate.css') }}">{% endblock %}
+
+{% block content %}
+<div class="container ec-fade-in" style="max-width: 640px; padding: 60px 20px;">
+  <div class="text-center mb-4">
+    <i class="fa-solid fa-shield-halved" style="font-size: 2.2rem; color: var(--ec-blue);"></i>
+    <h1 style="margin-top: 10px;">Certificate Verification</h1>
+    <p style="color: var(--ec-gray);">Enter a certificate ID to confirm its authenticity. No login required.</p>
+  </div>
+
+  <form method="GET" action="{{ url_for('certificate.verify_form') }}" class="ec-card p-4" style="display: flex; gap: 10px;">
+    <input type="text" id="certIdInput" name="cert_id" class="ec-form-control" placeholder="e.g. EDC-2026-000125" value="{{ cert_number }}" required>
+    <button type="submit" class="ec-btn ec-btn-primary">Verify</button>
+  </form>
+
+  {% if searched %}
+    {% if certificate and certificate.Status == 'Valid' %}
+      <div class="ec-verify-result ec-verify-valid">
+        <div class="ec-verify-icon valid"><i class="fa-solid fa-circle-check"></i></div>
+        <h3 style="color: var(--ec-success);">CERTIFICATE VERIFIED</h3>
+        <dl class="ec-verify-details">
+          <dt>Student</dt><dd>{{ certificate.student.FullName }}</dd>
+          <dt>Course</dt><dd>{{ certificate.course.Title }}</dd>
+          <dt>Score</dt><dd>{{ certificate.FinalScore }}%</dd>
+          <dt>Issue Date</dt><dd>{{ certificate.IssueDate.strftime('%d %B %Y') }}</dd>
+          <dt>Certificate ID</dt><dd>{{ certificate.CertificateNumber }}</dd>
+          <dt>Status</dt><dd style="color: var(--ec-success);">VALID</dd>
+        </dl>
+      </div>
+    {% elif certificate and certificate.Status == 'Revoked' %}
+      <div class="ec-verify-result ec-verify-revoked">
+        <div class="ec-verify-icon revoked"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3 style="color: var(--ec-warning);">CERTIFICATE REVOKED</h3>
+        <p style="color: var(--ec-gray);">This certificate was issued but has since been revoked by EduCertify.</p>
+        <dl class="ec-verify-details">
+          <dt>Certificate ID</dt><dd>{{ certificate.CertificateNumber }}</dd>
+        </dl>
+      </div>
+    {% else %}
+      <div class="ec-verify-result ec-verify-invalid">
+        <div class="ec-verify-icon invalid"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h3 style="color: var(--ec-danger);">INVALID CERTIFICATE</h3>
+        <p style="color: var(--ec-gray);">No certificate was found matching "{{ cert_number }}". Please double-check the ID and try again.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/certificate.js') }}"></script>{% endblock %}

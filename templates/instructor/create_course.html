@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Create Course{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'create' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Create a New Course</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Start with the basics — you can add modules, lessons and quizzes next.</p>
+
+    <div class="ec-card p-4" style="max-width: 640px;">
+      <form method="POST" action="{{ url_for('instructor.create_course_view') }}">
+        <div class="mb-3">
+          <label class="ec-form-label">Course Title</label>
+          <input type="text" name="title" class="ec-form-control" required minlength="3" placeholder="e.g. Python Programming for Beginners">
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Category</label>
+          <select name="category_id" class="ec-form-control" required>
+            <option value="" disabled selected>Select a category</option>
+            {% for cat in categories %}
+            <option value="{{ cat.CategoryID }}">{{ cat.Name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Short Description</label>
+          <input type="text" name="short_description" class="ec-form-control" maxlength="300" placeholder="One-line summary shown on course cards">
+        </div>
+        <div class="mb-3">
+          <label class="ec-form-label">Full Description</label>
+          <textarea name="description" class="ec-form-control" rows="4" placeholder="What will students learn?"></textarea>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="ec-form-label">Level</label>
+            <select name="level" class="ec-form-control">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label">Duration</label>
+            <input type="text" name="duration" class="ec-form-control" placeholder="e.g. 6 hours">
+          </div>
+          <div class="col-md-4">
+            <label class="ec-form-label">Price ($)</label>
+            <input type="number" name="price" class="ec-form-control" min="0" step="0.01" value="0">
+          </div>
+        </div>
+        <div class="mb-3 mt-3">
+          <label class="ec-form-label">Passing Score for Final Assessment (%)</label>
+          <input type="number" name="passing_score" class="ec-form-control" min="1" max="100" value="70">
+        </div>
+        <button type="submit" class="ec-btn ec-btn-primary">Create Draft &amp; Continue</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

@@ -1,0 +1,15 @@
+# Microsoft SQL Server support (optional).
+#
+# Install this ONLY when you're ready to connect to a real SQL Server
+# instance (DB_ENGINE=mssql in .env). It is kept separate from
+# requirements.txt because pyodbc often needs a matching prebuilt wheel
+# for your Python version, or Microsoft C++ Build Tools to compile from
+# source — and neither is needed for local development with SQLite.
+#
+# Usage:
+#   pip install -r requirements-sqlserver.txt
+#
+# If installation fails with "Microsoft Visual C++ 14.0 or greater is
+# required", see README.md > Troubleshooting for the two fix options.
+
+pyodbc==5.2.0

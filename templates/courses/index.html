@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Courses{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/courses.css') }}">{% endblock %}
+
+{% block content %}
+<div class="container ec-fade-in" style="max-width: 1200px; padding: 40px 20px;">
+  <h1>Explore Courses</h1>
+  <p style="color: var(--ec-gray); margin-bottom: 24px;">Find the right course to build your next skill.</p>
+
+  <form id="courseFilterForm" method="GET" action="{{ url_for('courses.index') }}" class="ec-filter-bar">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="ec-form-label">Search</label>
+        <input type="text" name="q" class="ec-form-control" placeholder="Search courses..." value="{{ search }}">
+      </div>
+      <div class="col-md-3">
+        <label class="ec-form-label">Category</label>
+        <select name="category" class="ec-form-control">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.CategoryID }}" {% if selected_category == cat.CategoryID %}selected{% endif %}>{{ cat.Name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="ec-form-label">Level</label>
+        <select name="level" class="ec-form-control">
+          <option value="">Any</option>
+          <option value="Beginner" {% if selected_level == 'Beginner' %}selected{% endif %}>Beginner</option>
+          <option value="Intermediate" {% if selected_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+          <option value="Advanced" {% if selected_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="ec-form-label">Sort</label>
+        <select name="sort" class="ec-form-control">
+          <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest</option>
+          <option value="title" {% if selected_sort == 'title' %}selected{% endif %}>Title A-Z</option>
+          <option value="price_low" {% if selected_sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+          <option value="price_high" {% if selected_sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="ec-btn ec-btn-primary ec-btn-block"><i class="fa-solid fa-magnifying-glass"></i></button>
+      </div>
+    </div>
+  </form>
+
+  {% if courses %}
+  <div class="row g-4">
+    {% for course in courses %}
+    <div class="col-md-4">
+      <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-card ec-card-hover d-block h-100" style="overflow: hidden;">
+        <div class="ec-course-thumb">
+          {% if course.ThumbnailURL %}
+            <img src="{{ course.ThumbnailURL }}" alt="{{ course.Title }}">
+          {% else %}
+            <i class="fa-solid fa-book" style="font-size: 2.5rem; color: var(--ec-blue);"></i>
+          {% endif %}
+        </div>
+        <div style="padding: 18px;">
+          <span class="ec-badge ec-badge-info">{{ course.Level }}</span>
+          {% if course.CourseID in enrolled_course_ids %}
+            <span class="ec-badge ec-badge-success">Enrolled</span>
+          {% endif %}
+          <h5 style="margin-top: 10px;">{{ course.Title }}</h5>
+          <p style="color: var(--ec-gray); font-size: 0.9rem;">{{ course.ShortDescription or "" }}</p>
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--ec-gray); margin-top: 12px;">
+            <span><i class="fa-solid fa-user"></i> {{ course.instructor.FullName }}</span>
+            <span><i class="fa-solid fa-star" style="color: #f59e0b;"></i> {{ course.average_rating }}</span>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div class="ec-pagination">
+    {% for page_num in pagination.iter_pages() %}
+      {% if page_num %}
+        <a href="{{ url_for('courses.index', page=page_num, q=search, category=selected_category, level=selected_level, sort=selected_sort) }}"
+           class="{% if page_num == pagination.page %}active{% endif %}">{{ page_num }}</a>
+      {% else %}
+        <span>&hellip;</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="ec-empty-state">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <p>No courses match your filters. Try a different search.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/courses.js') }}"></script>{% endblock %}

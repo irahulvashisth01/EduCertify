@@ -1,0 +1,23 @@
+<button class="ec-dash-mobile-toggle" id="dashSidebarToggle">
+  <i class="fa-solid fa-bars"></i> Menu
+</button>
+<aside class="ec-dash-sidebar" id="dashSidebar">
+  <a href="{{ url_for('instructor.dashboard') }}" class="{% if active_page == 'overview' %}active{% endif %}">
+    <i class="fa-solid fa-gauge"></i> Overview
+  </a>
+  <a href="{{ url_for('instructor.courses') }}" class="{% if active_page == 'courses' %}active{% endif %}">
+    <i class="fa-solid fa-book"></i> My Courses
+  </a>
+  <a href="{{ url_for('instructor.create_course_view') }}" class="{% if active_page == 'create' %}active{% endif %}">
+    <i class="fa-solid fa-plus"></i> Create Course
+  </a>
+  <a href="{{ url_for('instructor.students') }}" class="{% if active_page == 'students' %}active{% endif %}">
+    <i class="fa-solid fa-users"></i> Students
+  </a>
+  <a href="{{ url_for('instructor.analytics') }}" class="{% if active_page == 'analytics' %}active{% endif %}">
+    <i class="fa-solid fa-chart-line"></i> Analytics
+  </a>
+  <a href="{{ url_for('auth.logout') }}">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+  </a>
+</aside>

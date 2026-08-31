@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'courses' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-3" style="display: flex;">
+      <h2>My Courses</h2>
+      <a href="{{ url_for('instructor.create_course_view') }}" class="ec-btn ec-btn-primary ec-btn-sm">
+        <i class="fa-solid fa-plus"></i> Create Course
+      </a>
+    </div>
+
+    {% if courses %}
+    <div class="row g-4">
+      {% for course in courses %}
+      <div class="col-md-4">
+        <div class="ec-card p-3 h-100">
+          {% set badge_map = {'Draft': 'ec-badge-gray', 'Pending': 'ec-badge-warning', 'Published': 'ec-badge-success', 'Rejected': 'ec-badge-danger', 'Archived': 'ec-badge-gray'} %}
+          <span class="ec-badge {{ badge_map.get(course.Status, 'ec-badge-gray') }}">{{ course.Status }}</span>
+          <h6 style="margin-top: 10px;">{{ course.Title }}</h6>
+          <p style="color: var(--ec-gray); font-size: 0.85rem;">{{ course.ShortDescription or "No description yet." }}</p>
+          {% if course.Status == 'Rejected' and course.RejectionReason %}
+            <p style="color: var(--ec-danger); font-size: 0.8rem;"><i class="fa-solid fa-triangle-exclamation"></i> {{ course.RejectionReason }}</p>
+          {% endif %}
+          <a href="{{ url_for('instructor.edit_course', course_id=course.CourseID) }}" class="ec-btn ec-btn-outline ec-btn-sm ec-btn-block mt-2">Manage Course</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-book"></i>
+      <p>You haven't created any courses yet.</p>
+      <a href="{{ url_for('instructor.create_course_view') }}" class="ec-btn ec-btn-primary ec-btn-sm">Create Your First Course</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

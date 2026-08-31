@@ -1,0 +1,21 @@
+.ec-auth-wrapper {
+  min-height: calc(100vh - 300px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  background: var(--ec-gray-light);
+}
+
+.ec-auth-card {
+  background: #fff;
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-lg);
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+}
+
+@media (max-width: 480px) {
+  .ec-auth-card { padding: 28px 22px; }
+}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'students' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Enrolled Students</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">Students enrolled across all your courses.</p>
+
+    {% if enrollments %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Student</th><th>Course</th><th>Progress</th><th>Status</th><th>Enrolled On</th></tr></thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+          <tr>
+            <td>{{ enrollment.student.FullName }}</td>
+            <td>{{ enrollment.course.Title }}</td>
+            <td style="min-width: 150px;">
+              <div class="ec-progress"><div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div></div>
+              <span style="font-size: 0.8rem; color: var(--ec-gray);">{{ enrollment.ProgressPercentage }}%</span>
+            </td>
+            <td><span class="ec-badge {{ 'ec-badge-success' if enrollment.Status == 'Completed' else 'ec-badge-info' }}">{{ enrollment.Status }}</span></td>
+            <td>{{ enrollment.EnrollmentDate.strftime('%d %b %Y') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-users"></i>
+      <p>No students enrolled yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

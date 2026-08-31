@@ -1,0 +1,35 @@
+/* ============================================================
+   EduCertify — Additional Responsive Refinements
+   (breakpoint-specific tweaks not covered in component stylesheets)
+   ============================================================ */
+
+@media (max-width: 576px) {
+  .ec-navbar-inner { padding: 12px 16px; }
+  .ec-brand { font-size: 1.15rem; }
+
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.35rem; }
+
+  .ec-stat-card { padding: 16px; gap: 12px; }
+  .ec-stat-icon { width: 40px; height: 40px; font-size: 1.05rem; }
+  .ec-stat-value { font-size: 1.25rem; }
+
+  .ec-quiz-card { padding: 20px; }
+  .ec-cert-card { padding: 16px; }
+}
+
+@media (max-width: 768px) {
+  .ec-dash-content { padding: 16px; }
+  table.ec-table { font-size: 0.82rem; }
+  .ec-table th, .ec-table td { padding: 10px; }
+}
+
+/* Make wide tables horizontally scrollable rather than overflowing the page */
+.ec-table-wrapper {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure sticky sidebars don't stick on small screens where layout stacks */
+@media (max-width: 900px) {
+  .ec-auth-wrapper { padding: 30px 16px; }
+}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'settings' %}
+  {% include "admin/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Platform Settings</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 24px;">General configuration for EduCertify.</p>
+
+    <div class="ec-card p-4" style="max-width: 560px;">
+      <h6>Site Information</h6>
+      <div class="mb-3 mt-3">
+        <label class="ec-form-label">Platform Name</label>
+        <input type="text" class="ec-form-control" value="EduCertify" disabled>
+      </div>
+      <div class="mb-3">
+        <label class="ec-form-label">Support Email</label>
+        <input type="email" class="ec-form-control" value="support@educertify.com" disabled>
+      </div>
+      <p style="color: var(--ec-gray); font-size: 0.85rem;">
+        Platform-wide settings are currently managed via environment configuration (.env).
+        A full settings UI can be wired up here in a future iteration.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

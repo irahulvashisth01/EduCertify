@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Instructor Dashboard{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+
+{% block content %}
+<div class="ec-dash-layout">
+  {% set active_page = 'overview' %}
+  {% include "instructor/_sidebar.html" %}
+
+  <div class="ec-dash-content ec-fade-in">
+    <h2>Welcome, {{ session.get('user_name') }} 👋</h2>
+    <p style="color: var(--ec-gray); margin-bottom: 26px;">Here's how your courses are performing.</p>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-book"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ courses|length }}">0</div>
+            <div class="ec-stat-label">Total Courses</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-users"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ total_students }}">0</div>
+            <div class="ec-stat-label">Total Students</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="ec-stat-card">
+          <div class="ec-stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+          <div>
+            <div class="ec-stat-value" data-count="{{ published_count }}">0</div>
+            <div class="ec-stat-label">Published Courses</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3" style="display: flex;">
+      <h4>My Courses</h4>
+      <a href="{{ url_for('instructor.create_course_view') }}" class="ec-btn ec-btn-primary ec-btn-sm">
+        <i class="fa-solid fa-plus"></i> Create Course
+      </a>
+    </div>
+
+    {% if courses %}
+    <div class="ec-table-wrapper">
+      <table class="ec-table">
+        <thead><tr><th>Title</th><th>Level</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+          {% for course in courses %}
+          <tr>
+            <td>{{ course.Title }}</td>
+            <td>{{ course.Level }}</td>
+            <td>
+              {% set badge_map = {'Draft': 'ec-badge-gray', 'Pending': 'ec-badge-warning', 'Published': 'ec-badge-success', 'Rejected': 'ec-badge-danger', 'Archived': 'ec-badge-gray'} %}
+              <span class="ec-badge {{ badge_map.get(course.Status, 'ec-badge-gray') }}">{{ course.Status }}</span>
+            </td>
+            <td>{{ course.CreatedAt.strftime('%d %b %Y') }}</td>
+            <td><a href="{{ url_for('instructor.edit_course', course_id=course.CourseID) }}" class="ec-btn ec-btn-outline ec-btn-sm">Manage</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="ec-empty-state">
+      <i class="fa-solid fa-book"></i>
+      <p>You haven't created any courses yet.</p>
+      <a href="{{ url_for('instructor.create_course_view') }}" class="ec-btn ec-btn-primary ec-btn-sm">Create Your First Course</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

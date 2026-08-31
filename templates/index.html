@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section style="background: linear-gradient(135deg, var(--ec-navy) 0%, var(--ec-navy-light) 100%); color: #fff; padding: 90px 20px;">
+  <div class="container ec-slide-up" style="max-width: 900px; text-align: center;">
+    <h1 style="color: #fff; font-size: 2.6rem; margin-bottom: 18px;">Learn. Get Certified. Get Ahead.</h1>
+    <p style="color: #cbd5e1; font-size: 1.1rem; max-width: 640px; margin: 0 auto 32px;">
+      Join EduCertify to build in-demand skills through hands-on courses and earn
+      verifiable certificates that employers can trust.
+    </p>
+    <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-primary">
+        <i class="fa-solid fa-magnifying-glass"></i> Explore Courses
+      </a>
+      <a href="{{ url_for('auth.register') }}" class="ec-btn ec-btn-outline" style="border-color: rgba(255,255,255,0.3); color: #fff;">
+        Get Started Free
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="container" style="max-width: 1100px; padding: 50px 20px;">
+  <div class="row text-center g-4">
+    <div class="col-6 col-md-3">
+      <h2 style="color: var(--ec-blue); font-size: 2rem;">{{ stats.courses }}+</h2>
+      <p style="color: var(--ec-gray);">Published Courses</p>
+    </div>
+    <div class="col-6 col-md-3">
+      <h2 style="color: var(--ec-blue); font-size: 2rem;">{{ stats.categories }}+</h2>
+      <p style="color: var(--ec-gray);">Categories</p>
+    </div>
+    <div class="col-6 col-md-3">
+      <h2 style="color: var(--ec-blue); font-size: 2rem;">100%</h2>
+      <p style="color: var(--ec-gray);">Verifiable Certificates</p>
+    </div>
+    <div class="col-6 col-md-3">
+      <h2 style="color: var(--ec-blue); font-size: 2rem;">24/7</h2>
+      <p style="color: var(--ec-gray);">Self-Paced Access</p>
+    </div>
+  </div>
+</section>
+
+<section class="container" style="max-width: 1200px; padding: 30px 20px 70px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2 style="margin: 0;">Featured Courses</h2>
+    <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-outline ec-btn-sm">View All</a>
+  </div>
+
+  {% if featured_courses %}
+  <div class="row g-4">
+    {% for course in featured_courses %}
+    <div class="col-md-4">
+      <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-card ec-card-hover d-block h-100" style="overflow: hidden;">
+        <div style="height: 160px; background: var(--ec-blue-light); display: flex; align-items: center; justify-content: center;">
+          {% if course.ThumbnailURL %}
+            <img src="{{ course.ThumbnailURL }}" alt="{{ course.Title }}" style="width: 100%; height: 100%; object-fit: cover;">
+          {% else %}
+            <i class="fa-solid fa-book" style="font-size: 2.5rem; color: var(--ec-blue);"></i>
+          {% endif %}
+        </div>
+        <div style="padding: 18px;">
+          <span class="ec-badge ec-badge-info">{{ course.Level }}</span>
+          <h5 style="margin-top: 10px;">{{ course.Title }}</h5>
+          <p style="color: var(--ec-gray); font-size: 0.9rem;">{{ course.ShortDescription or "" }}</p>
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--ec-gray); margin-top: 12px;">
+            <span><i class="fa-solid fa-user"></i> {{ course.instructor.FullName }}</span>
+            <span><i class="fa-solid fa-clock"></i> {{ course.Duration or "Self-paced" }}</span>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ec-empty-state">
+    <i class="fa-solid fa-book-open"></i>
+    <p>No published courses yet. Check back soon!</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
