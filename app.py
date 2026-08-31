@@ -1,5 +1,8 @@
 """
 EduCertify — Application Entry Point
+=====================================
+
+Full-stack Learning & Certification Platform
 
 Responsibilities:
 - Initialize Flask
@@ -7,27 +10,46 @@ Responsibilities:
 - Configure templates and static files
 - Create upload directories
 - Initialize SQLAlchemy
-- Bootstrap the Admin account from environment variables
+- Bootstrap Admin account
 - Register application blueprints
+- Provide safe public-route fallback
 - Register global error handlers
 - Register template globals
-- Provide a production-ready WSGI application
+- Configure secure cookies
+- Provide PWA service-worker endpoint
+- Provide health-check endpoint
+- Provide production-ready WSGI application
 
-Production server:
-    gunicorn app:app
-
-Local development:
+Local:
     python app.py
+
+Production:
+    gunicorn app:app
 """
 
+# ============================================================
+# STANDARD LIBRARY
+# ============================================================
+
 import os
+
+
+# ============================================================
+# FLASK
+# ============================================================
 
 from flask import (
     Flask,
     jsonify,
     render_template,
     request,
+    send_from_directory,
 )
+
+
+# ============================================================
+# PROJECT IMPORTS
+# ============================================================
 
 from config import get_config
 from database.database import init_db
@@ -41,16 +63,19 @@ def create_app(config_class=None):
     """
     Create and configure the EduCertify Flask application.
 
-    Args:
-        config_class:
-            Optional Flask configuration class.
+    Parameters
+    ----------
+    config_class : optional
+        Custom Flask configuration class.
 
-    Returns:
-        Flask: Configured Flask application.
+    Returns
+    -------
+    Flask
+        Fully configured EduCertify application.
     """
 
     # --------------------------------------------------------
-    # Create Flask application
+    # CREATE FLASK APPLICATION
     # --------------------------------------------------------
 
     app = Flask(
@@ -61,7 +86,7 @@ def create_app(config_class=None):
     )
 
     # --------------------------------------------------------
-    # Load configuration
+    # LOAD CONFIGURATION
     # --------------------------------------------------------
 
     app.config.from_object(
@@ -69,7 +94,7 @@ def create_app(config_class=None):
     )
 
     # --------------------------------------------------------
-    # Production defaults
+    # APPLICATION DEFAULTS
     # --------------------------------------------------------
 
     app.config.setdefault(
@@ -83,8 +108,105 @@ def create_app(config_class=None):
     )
 
     # --------------------------------------------------------
-    # Create upload directories
+    # APPLICATION INFORMATION
     # --------------------------------------------------------
+
+    app.config.setdefault(
+        "APP_NAME",
+        "EduCertify",
+    )
+
+    app.config.setdefault(
+        "APP_VERSION",
+        "2.0.0",
+    )
+
+    # --------------------------------------------------------
+    # CREATE REQUIRED DIRECTORIES
+    # --------------------------------------------------------
+
+    create_upload_directories(app)
+
+    # --------------------------------------------------------
+    # INITIALIZE DATABASE
+    # --------------------------------------------------------
+
+    init_db(app)
+
+    # --------------------------------------------------------
+    # BOOTSTRAP ADMIN
+    # --------------------------------------------------------
+
+    bootstrap_admin(app)
+
+    # --------------------------------------------------------
+    # REGISTER BLUEPRINTS
+    # --------------------------------------------------------
+
+    register_blueprints(app)
+
+    # --------------------------------------------------------
+    # PUBLIC HOME FALLBACK
+    #
+    # This prevents a blank 404 at "/" if public_routes.py
+    # does not currently expose public.home.
+    # --------------------------------------------------------
+
+    register_public_fallback(app)
+
+    # --------------------------------------------------------
+    # PWA ROUTES
+    # --------------------------------------------------------
+
+    register_pwa_routes(app)
+
+    # --------------------------------------------------------
+    # PWA DIAGNOSTICS
+    # --------------------------------------------------------
+
+    register_pwa_diagnostics(app)
+
+    # --------------------------------------------------------
+    # ERROR HANDLERS
+    # --------------------------------------------------------
+
+    register_error_handlers(app)
+
+    # --------------------------------------------------------
+    # TEMPLATE GLOBALS
+    # --------------------------------------------------------
+
+    register_template_globals(app)
+
+    # --------------------------------------------------------
+    # SECURITY SETTINGS
+    # --------------------------------------------------------
+
+    register_security_settings(app)
+
+    # --------------------------------------------------------
+    # HEALTH CHECK
+    # --------------------------------------------------------
+
+    register_health_check(app)
+
+    # --------------------------------------------------------
+    # APPLICATION STARTUP MESSAGE
+    # --------------------------------------------------------
+
+    print_startup_information(app)
+
+    return app
+
+
+# ============================================================
+# DIRECTORY SETUP
+# ============================================================
+
+def create_upload_directories(app):
+    """
+    Create all configured upload directories.
+    """
 
     upload_folders = (
         app.config.get("UPLOAD_FOLDER"),
@@ -95,55 +217,26 @@ def create_app(config_class=None):
 
     for folder in upload_folders:
 
-        if folder:
+        if not folder:
+            continue
+
+        try:
+
             os.makedirs(
                 folder,
                 exist_ok=True,
             )
 
-    # --------------------------------------------------------
-    # Initialize database
-    # --------------------------------------------------------
+        except OSError as exc:
 
-    init_db(app)
+            print(
+                "[EduCertify] Warning: "
+                f"Could not create upload directory: {folder}"
+            )
 
-    # --------------------------------------------------------
-    # Create Admin account if required
-    # --------------------------------------------------------
-
-    bootstrap_admin(app)
-
-    # --------------------------------------------------------
-    # Register application blueprints
-    # --------------------------------------------------------
-
-    register_blueprints(app)
-
-    # --------------------------------------------------------
-    # Register error handlers
-    # --------------------------------------------------------
-
-    register_error_handlers(app)
-
-    # --------------------------------------------------------
-    # Register template globals
-    # --------------------------------------------------------
-
-    register_template_globals(app)
-
-    # --------------------------------------------------------
-    # Register security settings
-    # --------------------------------------------------------
-
-    register_security_settings(app)
-
-    # --------------------------------------------------------
-    # Register health check
-    # --------------------------------------------------------
-
-    register_health_check(app)
-
-    return app
+            print(
+                f"[EduCertify] Directory error: {exc}"
+            )
 
 
 # ============================================================
@@ -152,24 +245,19 @@ def create_app(config_class=None):
 
 def bootstrap_admin(app):
     """
-    Create the initial Admin account using Render environment
-    variables.
+    Create or activate the initial Admin account.
 
-    Required environment variables:
+    Environment variables:
 
         ADMIN_EMAIL
         ADMIN_PASSWORD
-
-    Optional:
-
         ADMIN_NAME
 
-    IMPORTANT:
-    - Admin is created only when the email does not already exist.
-    - Existing Admin passwords are NOT overwritten.
-    - Existing accounts are upgraded to Admin only when their
-      email matches ADMIN_EMAIL.
-    - Admin accounts are automatically activated.
+    Rules:
+    - Creates Admin only if email does not exist.
+    - Never overwrites an existing password.
+    - Converts the matching account to Admin.
+    - Activates the Admin account.
     """
 
     admin_email = os.environ.get(
@@ -188,14 +276,14 @@ def bootstrap_admin(app):
     ).strip()
 
     # --------------------------------------------------------
-    # Environment variables not configured
+    # ADMIN CONFIGURATION MISSING
     # --------------------------------------------------------
 
     if not admin_email or not admin_password:
 
         print(
-            "[EduCertify] Admin bootstrap skipped."
-            " ADMIN_EMAIL or ADMIN_PASSWORD is missing."
+            "[EduCertify] Admin bootstrap skipped. "
+            "ADMIN_EMAIL or ADMIN_PASSWORD is missing."
         )
 
         return
@@ -209,17 +297,19 @@ def bootstrap_admin(app):
             from utils.security import hash_password
 
             # ------------------------------------------------
-            # Find account by email
+            # FIND USER
             # ------------------------------------------------
 
             user = (
                 User.query
-                .filter_by(Email=admin_email)
+                .filter_by(
+                    Email=admin_email
+                )
                 .first()
             )
 
             # ------------------------------------------------
-            # Create new Admin
+            # CREATE ADMIN
             # ------------------------------------------------
 
             if user is None:
@@ -241,14 +331,14 @@ def bootstrap_admin(app):
                 db.session.commit()
 
                 print(
-                    "[EduCertify] Admin account created:"
-                    f" {admin_email}"
+                    "[EduCertify] Admin account created: "
+                    f"{admin_email}"
                 )
 
                 return
 
             # ------------------------------------------------
-            # Existing matching account
+            # UPDATE EXISTING ACCOUNT
             # ------------------------------------------------
 
             changed = False
@@ -263,10 +353,7 @@ def bootstrap_admin(app):
                 user.IsActive = True
                 changed = True
 
-            if (
-                not user.FullName
-                and admin_name
-            ):
+            if not user.FullName and admin_name:
 
                 user.FullName = admin_name
                 changed = True
@@ -277,14 +364,13 @@ def bootstrap_admin(app):
 
                 print(
                     "[EduCertify] Existing Admin account "
-                    "updated."
+                    "updated successfully."
                 )
 
             else:
 
                 print(
-                    "[EduCertify] Admin account already "
-                    "exists."
+                    "[EduCertify] Admin account already exists."
                 )
 
     except Exception as exc:
@@ -296,17 +382,11 @@ def bootstrap_admin(app):
             db.session.rollback()
 
         except Exception:
-
             pass
 
-        # ----------------------------------------------------
-        # Do not stop the entire application if Admin
-        # bootstrap fails.
-        # ----------------------------------------------------
-
         print(
-            "[EduCertify] Admin bootstrap warning:"
-            f" {exc}"
+            "[EduCertify] Admin bootstrap warning: "
+            f"{exc}"
         )
 
 
@@ -317,23 +397,31 @@ def bootstrap_admin(app):
 def register_blueprints(app):
     """
     Register all EduCertify application blueprints.
-
-    Imports are intentionally inside this function to reduce
-    circular-import problems during application startup.
     """
 
-    from routes.public_routes import public_bp
-    from routes.auth_routes import auth_bp
-    from routes.course_routes import courses_bp
-    from routes.student_routes import student_bp
-    from routes.instructor_routes import instructor_bp
-    from routes.admin_routes import admin_bp
-    from routes.quiz_routes import quiz_bp
-    from routes.certificate_routes import certificate_bp
-    from routes.api_routes import api_bp
+    try:
+
+        from routes.public_routes import public_bp
+        from routes.auth_routes import auth_bp
+        from routes.course_routes import courses_bp
+        from routes.student_routes import student_bp
+        from routes.instructor_routes import instructor_bp
+        from routes.admin_routes import admin_bp
+        from routes.quiz_routes import quiz_bp
+        from routes.certificate_routes import certificate_bp
+        from routes.api_routes import api_bp
+
+    except ImportError as exc:
+
+        print(
+            "[EduCertify] Blueprint import error:"
+            f" {exc}"
+        )
+
+        raise
 
     # --------------------------------------------------------
-    # Public
+    # PUBLIC
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -341,7 +429,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Authentication
+    # AUTHENTICATION
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -349,7 +437,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Course discovery
+    # COURSES
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -357,7 +445,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Student
+    # STUDENT
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -365,7 +453,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Instructor
+    # INSTRUCTOR
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -373,7 +461,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Admin
+    # ADMIN
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -381,7 +469,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Quiz
+    # QUIZ
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -389,7 +477,7 @@ def register_blueprints(app):
     )
 
     # --------------------------------------------------------
-    # Certificate
+    # CERTIFICATE
     # --------------------------------------------------------
 
     app.register_blueprint(
@@ -406,16 +494,199 @@ def register_blueprints(app):
 
 
 # ============================================================
+# PUBLIC HOME FALLBACK
+# ============================================================
+
+def register_public_fallback(app):
+    """
+    Register a fallback homepage only when no "/" route
+    has already been registered.
+
+    This protects the application from returning 404 when
+    public_routes.py is incomplete or temporarily missing
+    the public.home endpoint.
+    """
+
+    root_exists = False
+
+    for rule in app.url_map.iter_rules():
+
+        if rule.rule == "/":
+
+            root_exists = True
+            break
+
+    if root_exists:
+
+        print(
+            "[EduCertify] Homepage route detected."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # FALLBACK HOME ROUTE
+    # --------------------------------------------------------
+
+    @app.route(
+        "/",
+        endpoint="educertify_home_fallback",
+    )
+    def educertify_home_fallback():
+
+        return render_template(
+            "index.html"
+        )
+
+    print(
+        "[EduCertify] WARNING: public.home route "
+        "was not detected."
+    )
+
+    print(
+        "[EduCertify] Fallback homepage route "
+        "registered at /"
+    )
+
+
+# ============================================================
+# PWA ROUTES
+# ============================================================
+
+def register_pwa_routes(app):
+    """
+    Register Progressive Web App related routes.
+
+    Service worker must be available from the root scope
+    so it can control the complete EduCertify application.
+    """
+
+    @app.route(
+        "/service-worker.js",
+        methods=["GET"],
+        endpoint="service_worker",
+    )
+    def service_worker():
+        """
+        Serve the EduCertify service worker from the site root.
+
+        The physical file remains:
+            static/service-worker.js
+
+        The browser receives it from:
+            /service-worker.js
+
+        This allows the service worker to use:
+            scope="/"
+        and control the complete EduCertify application.
+        """
+
+        response = send_from_directory(
+            app.static_folder,
+            "service-worker.js",
+            mimetype="application/javascript",
+            max_age=0,
+        )
+
+        response.headers["Cache-Control"] = (
+            "no-cache, no-store, must-revalidate"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+        return response
+
+    # --------------------------------------------------------
+    # OPTIONAL ROOT MANIFEST ALIAS
+    # --------------------------------------------------------
+
+    @app.route(
+        "/manifest.json",
+        methods=["GET"],
+        endpoint="root_manifest",
+    )
+    def root_manifest():
+        """
+        Serve the PWA manifest from the site root.
+        """
+
+        response = send_from_directory(
+            app.static_folder,
+            "manifest.json",
+            mimetype="application/manifest+json",
+            max_age=0,
+        )
+
+        response.headers["Cache-Control"] = (
+            "no-cache, no-store, must-revalidate"
+        )
+
+        return response
+
+
+# ============================================================
+# PWA DIAGNOSTICS
+# ============================================================
+
+def register_pwa_diagnostics(app):
+    """
+    Register a small diagnostics endpoint for local PWA testing.
+
+    GET /pwa-status
+
+    This does not expose secrets. It only confirms that the
+    root PWA resources exist and are being served correctly.
+    """
+
+    @app.route(
+        "/pwa-status",
+        methods=["GET"],
+        endpoint="pwa_status",
+    )
+    def pwa_status():
+
+        service_worker_path = os.path.join(
+            app.static_folder,
+            "service-worker.js",
+        )
+
+        manifest_path = os.path.join(
+            app.static_folder,
+            "manifest.json",
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "service": "EduCertify",
+                "pwa": {
+                    "service_worker": (
+                        "/service-worker.js"
+                    ),
+                    "service_worker_file_exists": (
+                        os.path.isfile(service_worker_path)
+                    ),
+                    "manifest": "/manifest.json",
+                    "manifest_file_exists": (
+                        os.path.isfile(manifest_path)
+                    ),
+                    "expected_scope": "/",
+                },
+            }
+        )
+
+
+# ============================================================
 # ERROR HANDLERS
 # ============================================================
 
 def register_error_handlers(app):
     """
-    Register global HTTP error handlers.
+    Register global application error handlers.
 
-    Browser requests receive HTML error pages.
+    Browser requests receive HTML.
 
-    /api/* requests receive JSON responses.
+    API requests receive JSON.
     """
 
     # --------------------------------------------------------
@@ -431,7 +702,9 @@ def register_error_handlers(app):
                 jsonify(
                     {
                         "success": False,
+                        "error": "not_found",
                         "message": "Resource not found.",
+                        "path": request.path,
                     }
                 ),
                 404,
@@ -457,6 +730,7 @@ def register_error_handlers(app):
                 jsonify(
                     {
                         "success": False,
+                        "error": "forbidden",
                         "message": "Access denied.",
                     }
                 ),
@@ -471,6 +745,60 @@ def register_error_handlers(app):
         )
 
     # --------------------------------------------------------
+    # 405
+    # --------------------------------------------------------
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+
+        if request.path.startswith("/api/"):
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "method_not_allowed",
+                        "message": "HTTP method not allowed.",
+                    }
+                ),
+                405,
+            )
+
+        return (
+            render_template(
+                "errors/404.html"
+            ),
+            405,
+        )
+
+    # --------------------------------------------------------
+    # 413
+    # --------------------------------------------------------
+
+    @app.errorhandler(413)
+    def request_too_large(error):
+
+        if request.path.startswith("/api/"):
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "request_too_large",
+                        "message": "Uploaded file is too large.",
+                    }
+                ),
+                413,
+            )
+
+        return (
+            render_template(
+                "errors/500.html"
+            ),
+            413,
+        )
+
+    # --------------------------------------------------------
     # 500
     # --------------------------------------------------------
 
@@ -478,7 +806,7 @@ def register_error_handlers(app):
     def server_error(error):
 
         # ----------------------------------------------------
-        # Roll back failed database transaction.
+        # ROLLBACK DATABASE
         # ----------------------------------------------------
 
         try:
@@ -488,8 +816,11 @@ def register_error_handlers(app):
             db.session.rollback()
 
         except Exception:
-
             pass
+
+        # ----------------------------------------------------
+        # API RESPONSE
+        # ----------------------------------------------------
 
         if request.path.startswith("/api/"):
 
@@ -497,11 +828,16 @@ def register_error_handlers(app):
                 jsonify(
                     {
                         "success": False,
+                        "error": "internal_server_error",
                         "message": "Internal server error.",
                     }
                 ),
                 500,
             )
+
+        # ----------------------------------------------------
+        # HTML RESPONSE
+        # ----------------------------------------------------
 
         return (
             render_template(
@@ -517,15 +853,25 @@ def register_error_handlers(app):
 
 def register_template_globals(app):
     """
-    Make common application information available inside
-    every Jinja template.
+    Make common application information available
+    inside all Jinja templates.
     """
 
     @app.context_processor
     def inject_globals():
 
         return {
-            "app_name": "EduCertify",
+            "app_name": app.config.get(
+                "APP_NAME",
+                "EduCertify",
+            ),
+
+            "app_version": app.config.get(
+                "APP_VERSION",
+                "2.0.0",
+            ),
+
+            "current_year": 2026,
         }
 
 
@@ -535,20 +881,17 @@ def register_template_globals(app):
 
 def register_security_settings(app):
     """
-    Configure secure Flask session cookies.
-
-    These settings are especially important for the deployed
-    HTTPS version on Render.
+    Configure secure session cookies.
     """
 
     # --------------------------------------------------------
-    # Always protect cookies from JavaScript
+    # HTTP ONLY
     # --------------------------------------------------------
 
     app.config["SESSION_COOKIE_HTTPONLY"] = True
 
     # --------------------------------------------------------
-    # Prevent cross-site cookie sending in most situations
+    # SAME SITE
     # --------------------------------------------------------
 
     app.config.setdefault(
@@ -557,12 +900,21 @@ def register_security_settings(app):
     )
 
     # --------------------------------------------------------
-    # HTTPS production environment
+    # SECURE COOKIE
+    #
+    # Enabled automatically for non-debug / production.
     # --------------------------------------------------------
 
     if not app.debug:
 
         app.config["SESSION_COOKIE_SECURE"] = True
+
+    else:
+
+        app.config.setdefault(
+            "SESSION_COOKIE_SECURE",
+            False,
+        )
 
 
 # ============================================================
@@ -571,14 +923,15 @@ def register_security_settings(app):
 
 def register_health_check(app):
     """
-    Lightweight endpoint used to verify that the application
-    is running correctly.
+    Register application health endpoint.
 
-    URL:
-        /health
+    GET /health
     """
 
-    @app.route("/health")
+    @app.route(
+        "/health",
+        endpoint="health_check",
+    )
     def health_check():
 
         return (
@@ -586,10 +939,134 @@ def register_health_check(app):
                 {
                     "status": "ok",
                     "service": "EduCertify",
+                    "version": app.config.get(
+                        "APP_VERSION",
+                        "2.0.0",
+                    ),
                 }
             ),
             200,
         )
+
+
+# ============================================================
+# ROUTE DEBUG INFORMATION
+# ============================================================
+
+def print_startup_information(app):
+    """
+    Print useful startup information for local development.
+    """
+
+    print()
+    print("=" * 64)
+    print("                 EDUCERTIFY")
+    print("       Learning & Certification Platform")
+    print("=" * 64)
+
+    print(
+        f"Application : "
+        f"{app.config.get('APP_NAME', 'EduCertify')}"
+    )
+
+    print(
+        f"Version     : "
+        f"{app.config.get('APP_VERSION', '1.0.0')}"
+    )
+
+    print(
+        f"Debug       : "
+        f"{app.debug}"
+    )
+
+    print(
+        f"Templates   : "
+        f"{app.template_folder}"
+    )
+
+    print(
+        f"Static      : "
+        f"{app.static_folder}"
+    )
+
+    print()
+    print("Important URLs:")
+    print("  Homepage       : /")
+    print("  Health         : /health")
+    print("  Manifest       : /manifest.json")
+    print("  Service Worker : /service-worker.js")
+    print("  PWA Status      : /pwa-status")
+    print()
+
+    # --------------------------------------------------------
+    # CHECK HOMEPAGE
+    # --------------------------------------------------------
+
+    home_rules = [
+        rule
+        for rule in app.url_map.iter_rules()
+        if rule.rule == "/"
+    ]
+
+    if home_rules:
+
+        print(
+            "[EduCertify] Homepage: READY"
+        )
+
+        for rule in home_rules:
+
+            print(
+                f"  Endpoint: {rule.endpoint}"
+            )
+
+    else:
+
+        print(
+            "[EduCertify] Homepage: NOT FOUND"
+        )
+
+    # --------------------------------------------------------
+    # PRINT ROUTE COUNT
+    # --------------------------------------------------------
+
+    route_count = len(
+        list(
+            app.url_map.iter_rules()
+        )
+    )
+
+    pwa_routes = {
+        rule.rule
+        for rule in app.url_map.iter_rules()
+    }
+
+    print(
+        "[EduCertify] PWA routes:"
+    )
+
+    print(
+        "  /service-worker.js : "
+        f"{'READY' if '/service-worker.js' in pwa_routes else 'MISSING'}"
+    )
+
+    print(
+        "  /manifest.json     : "
+        f"{'READY' if '/manifest.json' in pwa_routes else 'MISSING'}"
+    )
+
+    print(
+        "  /pwa-status        : "
+        f"{'READY' if '/pwa-status' in pwa_routes else 'MISSING'}"
+    )
+
+    print(
+        f"[EduCertify] Registered routes: "
+        f"{route_count}"
+    )
+
+    print("=" * 64)
+    print()
 
 
 # ============================================================
@@ -606,37 +1083,65 @@ app = create_app()
 if __name__ == "__main__":
 
     # --------------------------------------------------------
-    # Render provides PORT automatically.
-    # Local development defaults to 5000.
+    # HOST
     # --------------------------------------------------------
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000,
-        )
-    )
 
     host = os.environ.get(
         "HOST",
-        "0.0.0.0",
+        "127.0.0.1",
     )
 
     # --------------------------------------------------------
-    # Only enable debug during local development.
+    # PORT
+    # --------------------------------------------------------
+
+    try:
+
+        port = int(
+            os.environ.get(
+                "PORT",
+                5000,
+            )
+        )
+
+    except ValueError:
+
+        port = 5000
+
+    # --------------------------------------------------------
+    # ENVIRONMENT
     # --------------------------------------------------------
 
     flask_env = os.environ.get(
         "FLASK_ENV",
-        "production",
+        "development",
     ).lower()
 
+    # --------------------------------------------------------
+    # DEBUG
+    # --------------------------------------------------------
+
     debug_mode = (
-        app.config.get(
-            "DEBUG",
-            False,
+        flask_env == "development"
+        and bool(
+            app.config.get(
+                "DEBUG",
+                False,
+            )
         )
-        and flask_env == "development"
+    )
+
+    # --------------------------------------------------------
+    # START SERVER
+    # --------------------------------------------------------
+
+    print(
+        "[EduCertify] Starting Flask development server..."
+    )
+
+    print(
+        f"[EduCertify] Open: "
+        f"http://{host}:{port}/"
     )
 
     app.run(

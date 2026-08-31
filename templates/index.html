@@ -4,8 +4,89 @@
 
 {% block body_class %}ec-home-page{% endblock %}
 
+{% block head_extra %}
+<meta
+    name="description"
+    content="EduCertify helps students learn practical skills, complete assessments and earn verifiable certificates."
+>
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="EduCertify — Learn • Certify • Succeed">
+<meta property="og:description" content="Learn practical skills, complete assessments and earn verifiable certificates with EduCertify.">
+<meta property="og:image" content="{{ url_for('static', filename='images/educertify-logo.png', _external=True) }}">
+<meta property="og:url" content="{{ request.url }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EduCertify — Learn • Certify • Succeed">
+<meta name="twitter:description" content="Learn practical skills and earn verifiable certificates with EduCertify.">
+{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/public-pages.css') }}">
+
+<style>
+    /* =========================================================
+       EDUCERTIFY HOME — SAFE ENHANCEMENTS
+    ========================================================== */
+
+    .ec-home-brand-mark {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto 18px;
+        filter: drop-shadow(0 12px 25px rgba(37, 99, 235, 0.16));
+    }
+
+    .ec-course-image img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        object-fit: cover;
+    }
+
+    .ec-home-stat strong {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ec-home-hero,
+    .ec-home-stats,
+    .ec-home-intro,
+    .ec-featured-section,
+    .ec-home-message {
+        overflow: hidden;
+    }
+
+    .ec-feature-card,
+    .ec-course-card {
+        height: 100%;
+    }
+
+    .ec-course-card:focus-visible,
+    .ec-text-link:focus-visible,
+    .ec-btn:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 4px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .ec-home-page *,
+        .ec-home-page *::before,
+        .ec-home-page *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .ec-home-brand-mark {
+            width: 76px;
+            height: 76px;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -87,6 +168,15 @@
             <div class="col-lg-5">
 
                 <div class="ec-learning-preview">
+
+                    <img
+                        src="{{ url_for('static', filename='images/educertify-logo.png') }}"
+                        alt="EduCertify"
+                        class="ec-home-brand-mark"
+                        width="96"
+                        height="96"
+                        loading="eager"
+                    >
 
                     <div class="ec-preview-top">
 
@@ -400,8 +490,12 @@
 
                         {% if course.ThumbnailURL %}
 
-                        <img src="{{ course.ThumbnailURL }}"
-                             alt="{{ course.Title }}">
+                        <img
+                                src="{{ course.ThumbnailURL }}"
+                                alt="{{ course.Title }} course thumbnail"
+                                loading="lazy"
+                                decoding="async"
+                            >
 
                         {% else %}
 
@@ -441,7 +535,7 @@
 
                             <span>
                                 <i class="fa-regular fa-user"></i>
-                                {{ course.instructor.FullName }}
+                                {{ course.instructor.FullName if course.instructor else "EduCertify Instructor" }}
                             </span>
 
                             <span>
