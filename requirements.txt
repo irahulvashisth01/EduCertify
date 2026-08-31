@@ -7,3 +7,4 @@ qrcode[pil]<9,>=8
 Pillow<12,>=11
 pytest<9,>=8
 gunicorn
+psycopg[binary]
