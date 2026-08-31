@@ -23,8 +23,8 @@ from flask import (
     request,
     send_from_directory,
     session,
+    url_for,
 )
-
 from database.database import db
 from database.models import (
     Certificate,

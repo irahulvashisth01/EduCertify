@@ -375,6 +375,57 @@ def _generate_unique_certificate_number():
         "Unable to generate a unique certificate number."
     )
 
+# ============================================================
+# AUTO ISSUE CERTIFICATE IF ELIGIBLE
+# ============================================================
+
+def issue_certificate_if_eligible(
+    student_id: int,
+    course_id: int,
+    app_config,
+):
+    """
+    Check certificate eligibility and issue the certificate
+    automatically when all course requirements are satisfied.
+
+    Returns:
+        Certificate | None
+
+    Returns None when the student is not yet eligible.
+
+    Raises:
+        CertificateError:
+            If certificate generation itself fails after the
+            student has become eligible.
+    """
+
+    if not student_id:
+        return None
+
+    if not course_id:
+        return None
+
+    # --------------------------------------------------------
+    # Check eligibility first
+    # --------------------------------------------------------
+
+    eligibility = check_eligibility(
+        student_id,
+        course_id,
+    )
+
+    if not eligibility.get("eligible", False):
+        return None
+
+    # --------------------------------------------------------
+    # Issue certificate
+    # --------------------------------------------------------
+
+    return issue_certificate(
+        student_id,
+        course_id,
+        app_config,
+    )
 
 # ============================================================
 # ISSUE CERTIFICATE

@@ -8,24 +8,31 @@ Responsibilities:
 - Mark lessons as completed
 - Recalculate course progress
 - Update enrollment completion status
+- Automatically issue certificates when eligible
 - Retrieve completed lesson IDs
 - Calculate module progress
-
-Routes should call this service instead of directly modifying
-progress records.
 """
 
 from datetime import datetime, timezone
 
+from flask import current_app
+
 from database.database import db
+
 from database.models import (
     LessonProgress,
     Lesson,
     Module,
     Enrollment,
+    Course,
 )
 
 from utils.helpers import calculate_percentage
+
+from services.certificate_service import (
+    issue_certificate_if_eligible,
+    CertificateError,
+)
 
 
 # ============================================================
@@ -136,16 +143,18 @@ def recalculate_course_progress(
 
     Progress is calculated from completed lessons.
 
-    When progress reaches 100%, the enrollment is automatically
-    marked as Completed.
+    When lesson progress reaches 100%, the enrollment is marked
+    Completed.
+
+    After the course reaches 100%, certificate eligibility is
+    checked automatically.
+
+    Certificate requirements are still enforced by the
+    certificate service.
     """
 
     if not student_id or not course_id:
         return 0.0
-
-    # Local import prevents circular import during application
-    # initialization.
-    from database.models import Course
 
     course = db.session.get(
         Course,
@@ -205,7 +214,7 @@ def recalculate_course_progress(
         .first()
     )
 
-    if enrollment:
+    if enrollment is not None:
 
         enrollment.ProgressPercentage = percentage
 
@@ -232,6 +241,32 @@ def recalculate_course_progress(
                 "Unable to update course progress."
             ) from exc
 
+    # --------------------------------------------------------
+    # AUTOMATIC CERTIFICATE CHECK
+    # --------------------------------------------------------
+
+    if percentage >= 100:
+
+        try:
+
+            issue_certificate_if_eligible(
+                student_id,
+                course_id,
+                current_app.config,
+            )
+
+        except CertificateError as exc:
+
+            # Do NOT fail lesson completion because certificate
+            # generation has a separate requirement/error.
+            #
+            # The student can still use the manual certificate
+            # generation endpoint from the Certificates page.
+            #
+            # The important distinction is that this does not
+            # hide lesson-progress/database errors above.
+            pass
+
     return percentage
 
 
@@ -245,9 +280,6 @@ def get_completed_lesson_ids(
 ) -> set:
     """
     Return the IDs of lessons completed by a student.
-
-    Returns:
-        set[int]: Completed lesson IDs.
     """
 
     if not student_id or not lesson_ids:

@@ -17,15 +17,18 @@ API Prefix:
 
 from flask import (
     Blueprint,
+    current_app,
     jsonify,
     request,
     session,
 )
 
 from database.database import db
+
 from database.models import (
     Lesson,
     Course,
+    Quiz,
 )
 
 from utils.decorators import (
@@ -48,6 +51,8 @@ from services.quiz_service import (
 
 from services.certificate_service import (
     verify_certificate,
+    issue_certificate_if_eligible,
+    CertificateError,
 )
 
 
@@ -66,7 +71,10 @@ api_bp = Blueprint(
 # COURSES API
 # ============================================================
 
-@api_bp.route("/courses", methods=["GET"])
+@api_bp.route(
+    "/courses",
+    methods=["GET"],
+)
 def api_courses():
     """
     Return all published courses.
@@ -85,6 +93,7 @@ def api_courses():
     data = []
 
     for course in courses:
+
         data.append(
             {
                 "CourseID": course.CourseID,
@@ -125,6 +134,7 @@ def api_course_detail(course_id):
     )
 
     if course is None:
+
         return (
             jsonify(
                 json_response(
@@ -168,12 +178,17 @@ def api_mark_progress(lesson_id):
     POST /api/progress/<lesson_id>
     """
 
+    # --------------------------------------------------------
+    # Find lesson
+    # --------------------------------------------------------
+
     lesson = db.session.get(
         Lesson,
         lesson_id,
     )
 
     if lesson is None:
+
         return (
             jsonify(
                 json_response(
@@ -184,9 +199,16 @@ def api_mark_progress(lesson_id):
             404,
         )
 
-    user_id = session.get("user_id")
+    # --------------------------------------------------------
+    # Current student
+    # --------------------------------------------------------
+
+    user_id = session.get(
+        "user_id"
+    )
 
     if not user_id:
+
         return (
             jsonify(
                 json_response(
@@ -196,6 +218,10 @@ def api_mark_progress(lesson_id):
             ),
             401,
         )
+
+    # --------------------------------------------------------
+    # Mark lesson completed
+    # --------------------------------------------------------
 
     try:
 
@@ -256,9 +282,16 @@ def api_start_quiz(quiz_id):
     POST /api/quizzes/<quiz_id>/start
     """
 
-    user_id = session.get("user_id")
+    # --------------------------------------------------------
+    # Current student
+    # --------------------------------------------------------
+
+    user_id = session.get(
+        "user_id"
+    )
 
     if not user_id:
+
         return (
             jsonify(
                 json_response(
@@ -271,10 +304,18 @@ def api_start_quiz(quiz_id):
 
     try:
 
+        # ----------------------------------------------------
+        # Start attempt
+        # ----------------------------------------------------
+
         attempt = start_attempt(
             user_id,
             quiz_id,
         )
+
+        # ----------------------------------------------------
+        # Load quiz questions
+        # ----------------------------------------------------
 
         quiz, questions = get_quiz_for_taking(
             quiz_id
@@ -305,6 +346,10 @@ def api_start_quiz(quiz_id):
             ),
             500,
         )
+
+    # --------------------------------------------------------
+    # Response
+    # --------------------------------------------------------
 
     return jsonify(
         json_response(
@@ -342,7 +387,17 @@ def api_submit_quiz(quiz_id):
     }
 
     POST /api/quizzes/<quiz_id>/submit
+
+    After a successful quiz submission, the API checks whether
+    the student has now satisfied all certificate requirements.
+
+    Certificate eligibility itself is handled by the certificate
+    service.
     """
+
+    # --------------------------------------------------------
+    # Read JSON payload
+    # --------------------------------------------------------
 
     payload = request.get_json(
         silent=True
@@ -357,7 +412,12 @@ def api_submit_quiz(quiz_id):
         {},
     )
 
+    # --------------------------------------------------------
+    # Validate attempt ID
+    # --------------------------------------------------------
+
     if not attempt_id:
+
         return (
             jsonify(
                 json_response(
@@ -368,7 +428,15 @@ def api_submit_quiz(quiz_id):
             400,
         )
 
-    if not isinstance(answers, dict):
+    # --------------------------------------------------------
+    # Validate answers
+    # --------------------------------------------------------
+
+    if not isinstance(
+        answers,
+        dict,
+    ):
+
         return (
             jsonify(
                 json_response(
@@ -379,9 +447,16 @@ def api_submit_quiz(quiz_id):
             400,
         )
 
-    user_id = session.get("user_id")
+    # --------------------------------------------------------
+    # Current student
+    # --------------------------------------------------------
+
+    user_id = session.get(
+        "user_id"
+    )
 
     if not user_id:
+
         return (
             jsonify(
                 json_response(
@@ -394,10 +469,119 @@ def api_submit_quiz(quiz_id):
 
     try:
 
+        # ----------------------------------------------------
+        # Submit and score quiz
+        # ----------------------------------------------------
+
         attempt = submit_attempt(
             user_id,
             attempt_id,
             answers,
+        )
+
+        # ----------------------------------------------------
+        # Make sure the submitted attempt belongs to the
+        # requested quiz.
+        # ----------------------------------------------------
+
+        if attempt.QuizID != quiz_id:
+
+            return (
+                jsonify(
+                    json_response(
+                        False,
+                        "Quiz attempt does not belong to this quiz.",
+                    )
+                ),
+                400,
+            )
+
+        # ----------------------------------------------------
+        # Certificate
+        # ----------------------------------------------------
+
+        certificate = None
+
+        if attempt.Passed:
+
+            # ------------------------------------------------
+            # Get quiz
+            # ------------------------------------------------
+
+            quiz = db.session.get(
+                Quiz,
+                quiz_id,
+            )
+
+            if quiz is not None:
+
+                try:
+
+                    certificate = (
+                        issue_certificate_if_eligible(
+                            user_id,
+                            quiz.CourseID,
+                            current_app.config,
+                        )
+                    )
+
+                except CertificateError:
+                    """
+                    This does not necessarily mean that something
+                    is broken.
+
+                    The student may have passed this quiz but
+                    still have:
+
+                    - incomplete lessons
+                    - another failed module quiz
+                    - an unpassed final assessment
+
+                    Therefore certificate generation is simply
+                    skipped until all requirements are satisfied.
+                    """
+
+                    certificate = None
+
+        # ----------------------------------------------------
+        # Prepare response
+        # ----------------------------------------------------
+
+        response_data = {
+            "score": attempt.Score,
+            "percentage": attempt.Percentage,
+            "passed": attempt.Passed,
+            "certificate": {
+                "generated": False,
+            },
+        }
+
+        # ----------------------------------------------------
+        # Certificate generated
+        # ----------------------------------------------------
+
+        if certificate is not None:
+
+            response_data["certificate"] = {
+                "generated": True,
+                "certificate_id": (
+                    certificate.CertificateID
+                ),
+                "certificate_number": (
+                    certificate.CertificateNumber
+                ),
+            }
+
+        # ----------------------------------------------------
+        # Return result
+        # ----------------------------------------------------
+
+        return jsonify(
+            json_response(
+                True,
+                "Quiz submitted successfully.",
+                **response_data,
+            )
         )
 
     except QuizError as exc:
@@ -425,16 +609,6 @@ def api_submit_quiz(quiz_id):
             ),
             500,
         )
-
-    return jsonify(
-        json_response(
-            True,
-            "Quiz submitted successfully.",
-            score=attempt.Score,
-            percentage=attempt.Percentage,
-            passed=attempt.Passed,
-        )
-    )
 
 
 # ============================================================
@@ -473,6 +647,10 @@ def api_verify_certificate(certificate_id):
             500,
         )
 
+    # --------------------------------------------------------
+    # Certificate not found
+    # --------------------------------------------------------
+
     if certificate is None:
 
         return (
@@ -486,13 +664,23 @@ def api_verify_certificate(certificate_id):
             404,
         )
 
+    # --------------------------------------------------------
+    # Issue date
+    # --------------------------------------------------------
+
     issue_date = certificate.IssueDate
 
     formatted_issue_date = (
-        issue_date.strftime("%d %B %Y")
+        issue_date.strftime(
+            "%d %B %Y"
+        )
         if issue_date
         else None
     )
+
+    # --------------------------------------------------------
+    # Student
+    # --------------------------------------------------------
 
     student_name = (
         certificate.student.FullName
@@ -500,11 +688,19 @@ def api_verify_certificate(certificate_id):
         else "Unknown Student"
     )
 
+    # --------------------------------------------------------
+    # Course
+    # --------------------------------------------------------
+
     course_title = (
         certificate.course.Title
         if certificate.course
         else "Unknown Course"
     )
+
+    # --------------------------------------------------------
+    # Response
+    # --------------------------------------------------------
 
     return jsonify(
         json_response(
