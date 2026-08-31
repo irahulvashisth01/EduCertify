@@ -1,117 +1,2187 @@
 {% extends "base.html" %}
-{% block title %}{{ course.Title }} - Learning{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/courses.css') }}">{% endblock %}
 
-{% block content %}
-<div style="background: var(--ec-navy); color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-  <div>
-    <h5 style="color: #fff; margin: 0;">{{ course.Title }}</h5>
-    <div class="ec-progress" style="width: 220px; margin-top: 6px;">
-      <div class="ec-progress-fill" style="width: {{ enrollment.ProgressPercentage }}%;"></div>
-    </div>
-    <span style="font-size: 0.8rem; color: #cbd5e1;">{{ enrollment.ProgressPercentage }}% complete &middot; {{ completed_ids|length }} of {{ course.total_lessons }} lessons</span>
-  </div>
-  <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-btn ec-btn-outline ec-btn-sm" style="border-color: rgba(255,255,255,0.3); color: #fff;">
-    <i class="fa-solid fa-arrow-left"></i> Back to Course
-  </a>
-</div>
-
-<div class="ec-learn-layout">
-  <aside class="ec-learn-sidebar">
-    {% for module in course.modules %}
-      <div class="ec-learn-module-title">
-        {{ module.Title }}
-        <span style="float: right; font-weight: 500; text-transform: none;">
-          {{ module_progress[module.ModuleID].completed }}/{{ module_progress[module.ModuleID].total }}
-        </span>
-      </div>
-      {% for lesson in module.lessons %}
-        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=lesson.LessonID) }}"
-           class="ec-learn-lesson {% if lesson.LessonID == current_lesson.LessonID %}active{% endif %}">
-          {% if lesson.LessonID in completed_ids %}
-            <i class="fa-solid fa-circle-check"></i>
-          {% elif lesson.LessonID == current_lesson.LessonID %}
-            <i class="fa-solid fa-play"></i>
-          {% else %}
-            <i class="fa-regular fa-circle"></i>
-          {% endif %}
-          <span>{{ lesson.Title }}</span>
-        </a>
-      {% endfor %}
-    {% endfor %}
-  </aside>
-
-  <div class="ec-learn-content ec-fade-in">
-    <h3>{{ current_lesson.Title }}</h3>
-    <p style="color: var(--ec-gray);">{{ current_lesson.Description or "" }}</p>
-
-    {% if current_lesson.VideoURL %}
-    <div class="ec-learn-video">
-      <iframe src="{{ current_lesson.VideoURL }}" allowfullscreen title="{{ current_lesson.Title }}"></iframe>
-    </div>
-    {% endif %}
-
-    {% if current_lesson.Content %}
-    <div style="line-height: 1.8; color: #334155;">
-      {{ current_lesson.Content | safe }}
-    </div>
-    {% endif %}
-
-    {% if current_lesson.ResourceURL %}
-    <a href="{{ current_lesson.ResourceURL }}" target="_blank" class="ec-btn ec-btn-outline ec-btn-sm mt-3">
-      <i class="fa-solid fa-file-arrow-down"></i> Download Resource
-    </a>
-    {% endif %}
-
-    <div class="mt-4" style="margin-top: 26px;">
-      {% if current_lesson.LessonID in completed_ids %}
-        <span class="ec-badge ec-badge-success"><i class="fa-solid fa-check"></i> Completed</span>
-      {% else %}
-        <button class="ec-btn ec-btn-success" id="markCompleteBtn" data-lesson-id="{{ current_lesson.LessonID }}">
-          <i class="fa-solid fa-check"></i> Mark Complete
-        </button>
-      {% endif %}
-    </div>
-
-    <div class="ec-learn-nav-buttons">
-      {% if prev_lesson %}
-        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=prev_lesson.LessonID) }}" class="ec-btn ec-btn-outline">
-          <i class="fa-solid fa-arrow-left"></i> Previous
-        </a>
-      {% else %}<span></span>{% endif %}
-
-      {% if next_lesson %}
-        <a href="{{ url_for('student.learn', course_id=course.CourseID, lesson_id=next_lesson.LessonID) }}" class="ec-btn ec-btn-primary">
-          Next <i class="fa-solid fa-arrow-right"></i>
-        </a>
-      {% else %}
-        <a href="{{ url_for('student.certificates') }}" class="ec-btn ec-btn-primary">
-          <i class="fa-solid fa-award"></i> Finish Course
-        </a>
-      {% endif %}
-    </div>
-  </div>
-</div>
+{% block title %}
+    {{ course.Title }} - Learning
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const btn = document.getElementById("markCompleteBtn");
-  if (!btn) return;
-  btn.addEventListener("click", async function () {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="ec-spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;"></span> Saving...';
-    const lessonId = btn.dataset.lessonId;
-    const result = await ecFetch(`/api/progress/${lessonId}`, { method: "POST" });
-    if (result.success) {
-      window.location.reload();
-    } else {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> Mark Complete';
-      alert(result.message || "Something went wrong.");
+
+{% block extra_css %}
+
+<link
+    rel="stylesheet"
+    href="{{ url_for(
+        'static',
+        filename='css/courses.css'
+    ) }}"
+>
+
+<style>
+
+/* ============================================================
+   EDUCERTIFY LEARNING PAGE
+   QUIZZES + LESSONS + ASSESSMENTS
+   ============================================================ */
+
+.ec-learning-page {
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+
+/* ============================================================
+   COURSE HEADER
+   ============================================================ */
+
+.ec-learning-header {
+    background: var(--ec-navy);
+    color: #fff;
+    padding: 18px 24px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.ec-learning-header-info {
+    min-width: 260px;
+}
+
+.ec-learning-header-info h5 {
+    color: #fff;
+    margin: 0 0 7px;
+    font-size: 1.1rem;
+}
+
+.ec-learning-progress {
+    width: 240px;
+    max-width: 100%;
+}
+
+.ec-learning-progress-text {
+    display: block;
+    margin-top: 6px;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+}
+
+
+/* ============================================================
+   MAIN LEARNING LAYOUT
+   ============================================================ */
+
+.ec-learn-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+
+    min-height: calc(100vh - 100px);
+
+    background: #fff;
+}
+
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
+.ec-learn-sidebar {
+    background: #fff;
+
+    border-right: 1px solid #e2e8f0;
+
+    padding: 16px 0;
+
+    overflow-y: auto;
+
+    max-height: calc(100vh - 100px);
+
+    position: sticky;
+    top: 0;
+}
+
+.ec-learn-module {
+    margin-bottom: 12px;
+}
+
+.ec-learn-module-title {
+    padding: 12px 16px;
+
+    font-size: 0.75rem;
+
+    font-weight: 800;
+
+    color: #475569;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.04em;
+
+    background: #f8fafc;
+
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ec-learn-module-title span {
+    float: right;
+
+    font-weight: 600;
+
+    text-transform: none;
+
+    color: #64748b;
+}
+
+.ec-learn-lesson {
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    padding: 10px 16px;
+
+    color: #475569;
+
+    text-decoration: none;
+
+    font-size: 0.82rem;
+
+    line-height: 1.4;
+
+    border-left: 3px solid transparent;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.ec-learn-lesson:hover {
+    background: #f8fafc;
+
+    color: var(--ec-blue);
+}
+
+.ec-learn-lesson.active {
+    background: #eff6ff;
+
+    color: var(--ec-blue);
+
+    border-left-color: var(--ec-blue);
+
+    font-weight: 700;
+}
+
+.ec-learn-lesson i {
+    width: 16px;
+
+    flex: 0 0 16px;
+}
+
+.ec-learn-lesson span {
+    min-width: 0;
+}
+
+
+/* ============================================================
+   QUIZ SIDEBAR
+   ============================================================ */
+
+.ec-sidebar-assessments {
+    margin-top: 15px;
+
+    border-top: 1px solid #e2e8f0;
+
+    padding-top: 12px;
+}
+
+.ec-sidebar-assessments-title {
+    padding: 10px 16px;
+
+    font-size: 0.72rem;
+
+    font-weight: 800;
+
+    color: #64748b;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.06em;
+}
+
+.ec-sidebar-quiz {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 9px;
+
+    padding: 10px 16px;
+
+    color: #475569;
+
+    text-decoration: none;
+
+    font-size: 0.8rem;
+
+    line-height: 1.4;
+
+    border-left: 3px solid transparent;
+
+    transition: 0.2s ease;
+}
+
+.ec-sidebar-quiz:hover {
+    background: #f8fafc;
+
+    color: var(--ec-blue);
+
+    border-left-color: var(--ec-blue);
+}
+
+.ec-sidebar-quiz-icon {
+    margin-top: 2px;
+
+    width: 18px;
+
+    flex: 0 0 18px;
+}
+
+.ec-sidebar-quiz-content {
+    min-width: 0;
+}
+
+.ec-sidebar-quiz-title {
+    display: block;
+
+    font-weight: 700;
+}
+
+.ec-sidebar-quiz-status {
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 0.7rem;
+
+    color: #64748b;
+}
+
+.ec-sidebar-quiz-status.passed {
+    color: #059669;
+
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   LEARNING CONTENT
+   ============================================================ */
+
+.ec-learn-content {
+    min-width: 0;
+
+    padding: 34px 40px 60px;
+
+    background: #fff;
+}
+
+.ec-learn-content-inner {
+    max-width: 1100px;
+
+    margin: 0 auto;
+}
+
+.ec-learn-content h3 {
+    margin: 0 0 8px;
+
+    color: #0f172a;
+
+    font-size: 1.65rem;
+}
+
+.ec-learn-description {
+    margin-bottom: 24px;
+
+    color: var(--ec-gray, #64748b);
+
+    line-height: 1.7;
+}
+
+
+/* ============================================================
+   VIDEO
+   ============================================================ */
+
+.ec-learn-video {
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    margin-bottom: 28px;
+
+    overflow: hidden;
+
+    border-radius: 14px;
+
+    background: #0f172a;
+
+    box-shadow:
+        0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.ec-learn-video iframe {
+    width: 100%;
+
+    height: 100%;
+
+    border: 0;
+}
+
+
+/* ============================================================
+   LESSON CONTENT
+   ============================================================ */
+
+.ec-lesson-content {
+    color: #334155;
+
+    line-height: 1.8;
+
+    font-size: 0.98rem;
+}
+
+.ec-lesson-content img {
+    max-width: 100%;
+
+    height: auto;
+
+    border-radius: 10px;
+}
+
+.ec-lesson-content pre {
+    overflow-x: auto;
+
+    padding: 16px;
+
+    border-radius: 10px;
+
+    background: #0f172a;
+
+    color: #e2e8f0;
+}
+
+.ec-lesson-content code {
+    word-break: break-word;
+}
+
+
+/* ============================================================
+   LESSON ACTION
+   ============================================================ */
+
+.ec-lesson-action {
+    margin-top: 28px;
+
+    padding-top: 22px;
+
+    border-top: 1px solid #e2e8f0;
+}
+
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+
+.ec-learn-nav-buttons {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 12px;
+
+    margin-top: 28px;
+
+    padding-top: 22px;
+
+    border-top: 1px solid #e2e8f0;
+}
+
+
+/* ============================================================
+   ASSESSMENT SECTION
+   ============================================================ */
+
+.ec-learning-quizzes {
+    margin-top: 50px;
+
+    padding: 30px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 18px;
+}
+
+.ec-assessment-header {
+    margin-bottom: 25px;
+}
+
+.ec-assessment-label {
+    display: inline-block;
+
+    margin-bottom: 6px;
+
+    color: var(--ec-blue, #2563eb);
+
+    font-size: 0.72rem;
+
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+}
+
+.ec-assessment-header h2 {
+    margin: 0;
+
+    color: #0f172a;
+
+    font-size: 1.5rem;
+}
+
+.ec-assessment-header p {
+    margin: 8px 0 0;
+
+    color: #64748b;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   QUIZ GRID
+   ============================================================ */
+
+.ec-quiz-list {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(280px, 1fr)
+        );
+
+    gap: 20px;
+}
+
+
+/* ============================================================
+   QUIZ CARD
+   ============================================================ */
+
+.ec-learning-quiz-card {
+    display: flex;
+
+    flex-direction: column;
+
+    min-width: 0;
+
+    padding: 22px;
+
+    background: #fff;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 5px 18px rgba(15, 23, 42, 0.04);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.ec-learning-quiz-card:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 14px 30px rgba(15, 23, 42, 0.09);
+}
+
+
+/* ============================================================
+   QUIZ TYPE
+   ============================================================ */
+
+.ec-quiz-card-header {
+    margin-bottom: 14px;
+}
+
+.ec-quiz-badge,
+.ec-final-badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    padding: 6px 11px;
+
+    border-radius: 50px;
+
+    font-size: 0.72rem;
+
+    font-weight: 800;
+}
+
+.ec-quiz-badge {
+    background: #eff6ff;
+
+    color: #2563eb;
+}
+
+.ec-final-badge {
+    background: #fef3c7;
+
+    color: #92400e;
+}
+
+
+/* ============================================================
+   QUIZ TITLE
+   ============================================================ */
+
+.ec-learning-quiz-card h3 {
+    margin: 0 0 9px;
+
+    color: #0f172a;
+
+    font-size: 1.15rem;
+
+    line-height: 1.4;
+}
+
+.ec-quiz-description {
+    margin: 0 0 17px;
+
+    color: #64748b;
+
+    font-size: 0.88rem;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   QUIZ INFORMATION
+   ============================================================ */
+
+.ec-quiz-info {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 7px;
+
+    margin-bottom: 18px;
+}
+
+.ec-quiz-info span {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 7px 9px;
+
+    border-radius: 8px;
+
+    background: #f8fafc;
+
+    color: #475569;
+
+    font-size: 0.72rem;
+}
+
+
+/* ============================================================
+   QUIZ RESULT
+   ============================================================ */
+
+.ec-quiz-passed,
+.ec-quiz-failed {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 18px;
+
+    padding: 12px;
+
+    border-radius: 10px;
+}
+
+.ec-quiz-passed {
+    background: #ecfdf5;
+
+    color: #047857;
+}
+
+.ec-quiz-failed {
+    background: #fef2f2;
+
+    color: #b91c1c;
+}
+
+.ec-quiz-passed i,
+.ec-quiz-failed i {
+    font-size: 1.15rem;
+}
+
+.ec-quiz-result-text strong {
+    display: block;
+
+    font-size: 0.88rem;
+}
+
+.ec-quiz-result-text small {
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 0.75rem;
+}
+
+
+/* ============================================================
+   QUIZ ACTION
+   ============================================================ */
+
+.ec-quiz-action {
+    margin-top: auto;
+
+    padding-top: 4px;
+}
+
+.ec-quiz-action .ec-btn {
+    width: 100%;
+
+    text-align: center;
+}
+
+
+/* ============================================================
+   NO QUIZ
+   ============================================================ */
+
+.ec-no-quizzes {
+    padding: 45px 20px;
+
+    text-align: center;
+
+    background: #fff;
+
+    border: 1px dashed #cbd5e1;
+
+    border-radius: 14px;
+
+    color: #64748b;
+}
+
+.ec-no-quizzes i {
+    margin-bottom: 12px;
+
+    font-size: 2.3rem;
+
+    opacity: 0.45;
+}
+
+.ec-no-quizzes h3 {
+    margin: 0 0 7px;
+
+    color: #334155;
+
+    font-size: 1.1rem;
+}
+
+.ec-no-quizzes p {
+    margin: 0;
+
+    font-size: 0.88rem;
+}
+
+
+/* ============================================================
+   CERTIFICATE READY
+   ============================================================ */
+
+.ec-certificate-ready {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-top: 25px;
+
+    padding: 20px;
+
+    background: #ecfdf5;
+
+    border: 1px solid #a7f3d0;
+
+    border-radius: 14px;
+
+    color: #065f46;
+}
+
+.ec-certificate-ready-content {
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+}
+
+.ec-certificate-ready-icon {
+    font-size: 1.7rem;
+}
+
+.ec-certificate-ready strong {
+    display: block;
+
+    color: #065f46;
+}
+
+.ec-certificate-ready small {
+    display: block;
+
+    margin-top: 3px;
+
+    color: #047857;
+}
+
+
+/* ============================================================
+   EMPTY LESSON STATE
+   ============================================================ */
+
+.ec-no-lesson {
+    padding: 60px 25px;
+
+    text-align: center;
+
+    color: #64748b;
+}
+
+.ec-no-lesson i {
+    margin-bottom: 15px;
+
+    font-size: 2.5rem;
+
+    opacity: 0.5;
+}
+
+.ec-no-lesson h3 {
+    margin-bottom: 8px;
+
+    color: #334155;
+}
+
+
+/* ============================================================
+   SPINNER
+   ============================================================ */
+
+.ec-inline-spinner {
+    width: 16px;
+
+    height: 16px;
+
+    display: inline-block;
+
+    border: 2px solid currentColor;
+
+    border-right-color: transparent;
+
+    border-radius: 50%;
+
+    animation: ecSpin 0.7s linear infinite;
+
+    vertical-align: -3px;
+
+    margin-right: 6px;
+}
+
+@keyframes ecSpin {
+    to {
+        transform: rotate(360deg);
     }
-  });
-});
+}
+
+
+/* ============================================================
+   TABLET
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+    .ec-learn-layout {
+        grid-template-columns: 230px minmax(0, 1fr);
+    }
+
+    .ec-learn-content {
+        padding: 28px 25px 50px;
+    }
+
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .ec-learning-header {
+        padding: 15px;
+
+        align-items: flex-start;
+    }
+
+    .ec-learning-progress {
+        width: 100%;
+    }
+
+    .ec-learn-layout {
+        display: block;
+    }
+
+    .ec-learn-sidebar {
+        position: static;
+
+        max-height: none;
+
+        border-right: 0;
+
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .ec-learn-content {
+        padding: 25px 16px 45px;
+    }
+
+    .ec-learn-content h3 {
+        font-size: 1.35rem;
+    }
+
+    .ec-learning-quizzes {
+        padding: 20px 15px;
+    }
+
+    .ec-quiz-list {
+        grid-template-columns: 1fr;
+    }
+
+    .ec-learn-nav-buttons {
+        flex-wrap: wrap;
+    }
+
+    .ec-certificate-ready {
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+}
+
+
+/* ============================================================
+   SMALL MOBILE
+   ============================================================ */
+
+@media (max-width: 450px) {
+
+    .ec-learning-header {
+        gap: 12px;
+    }
+
+    .ec-learning-header > a {
+        width: 100%;
+
+        text-align: center;
+    }
+
+    .ec-quiz-info {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ec-quiz-info span {
+        justify-content: center;
+    }
+
+}
+
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="ec-learning-page">
+
+
+    <!-- ========================================================
+         COURSE HEADER
+         ======================================================== -->
+
+    <div class="ec-learning-header">
+
+        <div class="ec-learning-header-info">
+
+            <h5>
+                {{ course.Title }}
+            </h5>
+
+            <div
+                class="ec-progress ec-learning-progress"
+            >
+
+                <div
+                    class="ec-progress-fill"
+                    style="
+                        width:
+                        {{ enrollment.ProgressPercentage or 0 }}%;
+                    "
+                ></div>
+
+            </div>
+
+            <span class="ec-learning-progress-text">
+
+                {{ enrollment.ProgressPercentage or 0 }}%
+                complete
+
+                &middot;
+
+                {{ completed_ids|length }}
+                of
+                {{ course.total_lessons }}
+                lessons
+
+            </span>
+
+        </div>
+
+
+        <a
+            href="{{ url_for(
+                'courses.details',
+                slug=course.Slug
+            ) }}"
+            class="
+                ec-btn
+                ec-btn-outline
+                ec-btn-sm
+            "
+            style="
+                border-color:
+                rgba(255,255,255,0.3);
+
+                color: #fff;
+            "
+        >
+
+            <i class="fa-solid fa-arrow-left"></i>
+
+            Back to Course
+
+        </a>
+
+    </div>
+
+
+    <!-- ========================================================
+         LEARNING LAYOUT
+         ======================================================== -->
+
+    <div class="ec-learn-layout">
+
+
+        <!-- ====================================================
+             SIDEBAR
+             ==================================================== -->
+
+        <aside class="ec-learn-sidebar">
+
+
+            <!-- ==================================================
+                 MODULES + LESSONS
+                 ================================================== -->
+
+            {% for module in course.modules %}
+
+                <div class="ec-learn-module">
+
+
+                    <div class="ec-learn-module-title">
+
+                        {{ module.Title }}
+
+                        <span>
+
+                            {{ module_progress[
+                                module.ModuleID
+                            ].completed }}
+
+                            /
+
+                            {{ module_progress[
+                                module.ModuleID
+                            ].total }}
+
+                        </span>
+
+                    </div>
+
+
+                    {% for lesson in module.lessons %}
+
+                        <a
+                            href="{{ url_for(
+                                'student.learn',
+                                course_id=course.CourseID,
+                                lesson_id=lesson.LessonID
+                            ) }}"
+                            class="
+                                ec-learn-lesson
+
+                                {% if current_lesson
+                                    and lesson.LessonID
+                                    == current_lesson.LessonID
+                                %}
+                                    active
+                                {% endif %}
+                            "
+                        >
+
+                            {% if lesson.LessonID in completed_ids %}
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-circle-check
+                                    "
+                                ></i>
+
+                            {% elif current_lesson
+                                and lesson.LessonID
+                                == current_lesson.LessonID
+                            %}
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-play
+                                    "
+                                ></i>
+
+                            {% else %}
+
+                                <i
+                                    class="
+                                        fa-regular
+                                        fa-circle
+                                    "
+                                ></i>
+
+                            {% endif %}
+
+
+                            <span>
+                                {{ lesson.Title }}
+                            </span>
+
+                        </a>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endfor %}
+
+
+            <!-- ==================================================
+                 QUIZZES IN SIDEBAR
+                 ================================================== -->
+
+            {% if course_quizzes %}
+
+                <div class="ec-sidebar-assessments">
+
+                    <div class="ec-sidebar-assessments-title">
+
+                        <i
+                            class="
+                                fa-solid
+                                fa-clipboard-question
+                            "
+                        ></i>
+
+                        Assessments
+
+                    </div>
+
+
+                    {% for item in course_quizzes %}
+
+                        {% set quiz = item.quiz %}
+                        {% set best = item.best_attempt %}
+
+
+                        <a
+                            href="{{ url_for(
+                                'student.quiz_page',
+                                quiz_id=quiz.QuizID
+                            ) }}"
+                            class="ec-sidebar-quiz"
+                        >
+
+                            <div class="ec-sidebar-quiz-icon">
+
+                                {% if item.is_final %}
+
+                                    <i
+                                        class="
+                                            fa-solid
+                                            fa-graduation-cap
+                                        "
+                                    ></i>
+
+                                {% elif best and best.Passed %}
+
+                                    <i
+                                        class="
+                                            fa-solid
+                                            fa-circle-check
+                                        "
+                                    ></i>
+
+                                {% else %}
+
+                                    <i
+                                        class="
+                                            fa-solid
+                                            fa-clipboard-question
+                                        "
+                                    ></i>
+
+                                {% endif %}
+
+                            </div>
+
+
+                            <div
+                                class="
+                                    ec-sidebar-quiz-content
+                                "
+                            >
+
+                                <span
+                                    class="
+                                        ec-sidebar-quiz-title
+                                    "
+                                >
+                                    {{ quiz.Title }}
+                                </span>
+
+
+                                {% if best and best.Passed %}
+
+                                    <span
+                                        class="
+                                            ec-sidebar-quiz-status
+                                            passed
+                                        "
+                                    >
+                                        Passed
+                                        ·
+                                        {{ best.Percentage }}%
+                                    </span>
+
+                                {% elif item.is_final %}
+
+                                    <span
+                                        class="
+                                            ec-sidebar-quiz-status
+                                        "
+                                    >
+                                        Final Assessment
+                                    </span>
+
+                                {% else %}
+
+                                    <span
+                                        class="
+                                            ec-sidebar-quiz-status
+                                        "
+                                    >
+                                        Start Quiz
+                                    </span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </a>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+
+        </aside>
+
+
+        <!-- ====================================================
+             MAIN CONTENT
+             ==================================================== -->
+
+        <main class="ec-learn-content">
+
+            <div class="ec-learn-content-inner">
+
+
+                <!-- ==================================================
+                     CURRENT LESSON
+                     ================================================== -->
+
+                {% if current_lesson %}
+
+
+                    <h3>
+                        {{ current_lesson.Title }}
+                    </h3>
+
+
+                    <p
+                        class="ec-learn-description"
+                    >
+                        {{ current_lesson.Description or "" }}
+                    </p>
+
+
+                    <!-- ==============================================
+                         VIDEO
+                         ============================================== -->
+
+                    {% if current_lesson.VideoURL %}
+
+                        <div
+                            class="ec-learn-video"
+                        >
+
+                            <iframe
+                                src="{{ current_lesson.VideoURL }}"
+                                allowfullscreen
+                                title="{{ current_lesson.Title }}"
+                            ></iframe>
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- ==============================================
+                         LESSON CONTENT
+                         ============================================== -->
+
+                    {% if current_lesson.Content %}
+
+                        <div
+                            class="ec-lesson-content"
+                        >
+                            {{ current_lesson.Content | safe }}
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- ==============================================
+                         RESOURCE
+                         ============================================== -->
+
+                    {% if current_lesson.ResourceURL %}
+
+                        <a
+                            href="{{ current_lesson.ResourceURL }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="
+                                ec-btn
+                                ec-btn-outline
+                                ec-btn-sm
+                                mt-3
+                            "
+                        >
+
+                            <i
+                                class="
+                                    fa-solid
+                                    fa-file-arrow-down
+                                "
+                            ></i>
+
+                            Download Resource
+
+                        </a>
+
+                    {% endif %}
+
+
+                    <!-- ==============================================
+                         COMPLETE LESSON
+                         ============================================== -->
+
+                    <div
+                        class="ec-lesson-action"
+                    >
+
+                        {% if current_lesson.LessonID in completed_ids %}
+
+                            <span
+                                class="
+                                    ec-badge
+                                    ec-badge-success
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-check
+                                    "
+                                ></i>
+
+                                Completed
+
+                            </span>
+
+                        {% else %}
+
+                            <button
+                                type="button"
+                                class="
+                                    ec-btn
+                                    ec-btn-success
+                                "
+                                id="markCompleteBtn"
+                                data-lesson-id="
+                                    {{ current_lesson.LessonID }}
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-check
+                                    "
+                                ></i>
+
+                                Mark Complete
+
+                            </button>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- ==============================================
+                         PREVIOUS / NEXT
+                         ============================================== -->
+
+                    <div
+                        class="
+                            ec-learn-nav-buttons
+                        "
+                    >
+
+                        {% if prev_lesson %}
+
+                            <a
+                                href="{{ url_for(
+                                    'student.learn',
+                                    course_id=course.CourseID,
+                                    lesson_id=prev_lesson.LessonID
+                                ) }}"
+                                class="
+                                    ec-btn
+                                    ec-btn-outline
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-arrow-left
+                                    "
+                                ></i>
+
+                                Previous
+
+                            </a>
+
+                        {% else %}
+
+                            <span></span>
+
+                        {% endif %}
+
+
+                        {% if next_lesson %}
+
+                            <a
+                                href="{{ url_for(
+                                    'student.learn',
+                                    course_id=course.CourseID,
+                                    lesson_id=next_lesson.LessonID
+                                ) }}"
+                                class="
+                                    ec-btn
+                                    ec-btn-primary
+                                "
+                            >
+
+                                Next
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-arrow-right
+                                    "
+                                ></i>
+
+                            </a>
+
+                        {% else %}
+
+                            <span></span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                {% else %}
+
+
+                    <!-- ==============================================
+                         NO LESSON
+                         ============================================== -->
+
+                    <div class="ec-no-lesson">
+
+                        <i
+                            class="
+                                fa-solid
+                                fa-book-open
+                            "
+                        ></i>
+
+                        <h3>
+                            Course Learning
+                        </h3>
+
+                        <p>
+                            Select a lesson from the sidebar
+                            to begin learning.
+                        </p>
+
+                    </div>
+
+
+                {% endif %}
+
+
+                <!-- ==================================================
+                     QUIZZES & FINAL ASSESSMENT
+                     ================================================== -->
+
+                <section
+                    class="ec-learning-quizzes"
+                    id="assessments"
+                >
+
+
+                    <div
+                        class="
+                            ec-assessment-header
+                        "
+                    >
+
+                        <span
+                            class="
+                                ec-assessment-label
+                            "
+                        >
+                            Assessment
+                        </span>
+
+
+                        <h2>
+
+                            <i
+                                class="
+                                    fa-solid
+                                    fa-clipboard-question
+                                "
+                            ></i>
+
+                            Quizzes & Final Assessment
+
+                        </h2>
+
+
+                        <p>
+                            Complete the required assessments
+                            to qualify for your course certificate.
+                        </p>
+
+                    </div>
+
+
+                    {% if course_quizzes %}
+
+
+                        <div class="ec-quiz-list">
+
+
+                            {% for item in course_quizzes %}
+
+                                {% set quiz = item.quiz %}
+                                {% set best = item.best_attempt %}
+                                {% set remaining = item.remaining %}
+
+
+                                <article
+                                    class="
+                                        ec-learning-quiz-card
+                                    "
+                                >
+
+
+                                    <!-- ==================================
+                                         QUIZ TYPE
+                                         ================================== -->
+
+                                    <div
+                                        class="
+                                            ec-quiz-card-header
+                                        "
+                                    >
+
+                                        {% if item.is_final %}
+
+                                            <span
+                                                class="
+                                                    ec-final-badge
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-graduation-cap
+                                                    "
+                                                ></i>
+
+                                                Final Assessment
+
+                                            </span>
+
+                                        {% else %}
+
+                                            <span
+                                                class="
+                                                    ec-quiz-badge
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-clipboard-question
+                                                    "
+                                                ></i>
+
+                                                Course Quiz
+
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <!-- ==================================
+                                         TITLE
+                                         ================================== -->
+
+                                    <h3>
+                                        {{ quiz.Title }}
+                                    </h3>
+
+
+                                    <!-- ==================================
+                                         DESCRIPTION
+                                         ================================== -->
+
+                                    {% if quiz.Description %}
+
+                                        <p
+                                            class="
+                                                ec-quiz-description
+                                            "
+                                        >
+                                            {{ quiz.Description }}
+                                        </p>
+
+                                    {% else %}
+
+                                        <p
+                                            class="
+                                                ec-quiz-description
+                                            "
+                                        >
+                                            Test your knowledge
+                                            and understanding of
+                                            this course.
+                                        </p>
+
+                                    {% endif %}
+
+
+                                    <!-- ==================================
+                                         QUIZ DETAILS
+                                         ================================== -->
+
+                                    <div
+                                        class="
+                                            ec-quiz-info
+                                        "
+                                    >
+
+                                        <span>
+
+                                            <i
+                                                class="
+                                                    fa-solid
+                                                    fa-circle-question
+                                                "
+                                            ></i>
+
+                                            {{ item.question_count }}
+
+                                            Questions
+
+                                        </span>
+
+
+                                        <span>
+
+                                            <i
+                                                class="
+                                                    fa-solid
+                                                    fa-bullseye
+                                                "
+                                            ></i>
+
+                                            Pass:
+                                            {{ quiz.PassingScore }}%
+
+                                        </span>
+
+
+                                        {% if quiz.TimeLimit %}
+
+                                            <span>
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-clock
+                                                    "
+                                                ></i>
+
+                                                {{ quiz.TimeLimit }}
+                                                Minutes
+
+                                            </span>
+
+                                        {% endif %}
+
+
+                                        <span>
+
+                                            <i
+                                                class="
+                                                    fa-solid
+                                                    fa-rotate
+                                                "
+                                            ></i>
+
+                                            {{ quiz.AttemptsAllowed }}
+                                            Attempts
+
+                                        </span>
+
+                                    </div>
+
+
+                                    <!-- ==================================
+                                         BEST RESULT
+                                         ================================== -->
+
+                                    {% if best %}
+
+
+                                        {% if best.Passed %}
+
+                                            <div
+                                                class="
+                                                    ec-quiz-passed
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-circle-check
+                                                    "
+                                                ></i>
+
+
+                                                <div
+                                                    class="
+                                                        ec-quiz-result-text
+                                                    "
+                                                >
+
+                                                    <strong>
+                                                        Passed
+                                                    </strong>
+
+                                                    <small>
+                                                        Best Score:
+                                                        {{ best.Percentage }}%
+                                                    </small>
+
+                                                </div>
+
+                                            </div>
+
+
+                                        {% else %}
+
+
+                                            <div
+                                                class="
+                                                    ec-quiz-failed
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-circle-xmark
+                                                    "
+                                                ></i>
+
+
+                                                <div
+                                                    class="
+                                                        ec-quiz-result-text
+                                                    "
+                                                >
+
+                                                    <strong>
+                                                        Not Passed
+                                                    </strong>
+
+                                                    <small>
+                                                        Best Score:
+                                                        {{ best.Percentage }}%
+                                                    </small>
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endif %}
+
+
+                                    {% endif %}
+
+
+                                    <!-- ==================================
+                                         QUIZ ACTION
+                                         ================================== -->
+
+                                    <div
+                                        class="
+                                            ec-quiz-action
+                                        "
+                                    >
+
+
+                                        {% if best and best.Passed %}
+
+
+                                            <a
+                                                href="{{ url_for(
+                                                    'student.quiz_page',
+                                                    quiz_id=quiz.QuizID
+                                                ) }}"
+                                                class="
+                                                    ec-btn
+                                                    ec-btn-outline-primary
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-eye
+                                                    "
+                                                ></i>
+
+                                                View Result
+
+                                            </a>
+
+
+                                        {% elif remaining > 0 %}
+
+
+                                            <a
+                                                href="{{ url_for(
+                                                    'student.quiz_page',
+                                                    quiz_id=quiz.QuizID
+                                                ) }}"
+                                                class="
+                                                    ec-btn
+                                                    ec-btn-primary
+                                                "
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-play
+                                                    "
+                                                ></i>
+
+                                                Start Quiz
+
+                                            </a>
+
+
+                                        {% else %}
+
+
+                                            <button
+                                                type="button"
+                                                class="
+                                                    ec-btn
+                                                    ec-btn-secondary
+                                                "
+                                                disabled
+                                            >
+
+                                                <i
+                                                    class="
+                                                        fa-solid
+                                                        fa-lock
+                                                    "
+                                                ></i>
+
+                                                Attempts Used
+
+                                            </button>
+
+
+                                        {% endif %}
+
+
+                                    </div>
+
+
+                                </article>
+
+
+                            {% endfor %}
+
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <!-- ==========================================
+                             NO QUIZZES
+                             ========================================== -->
+
+                        <div
+                            class="
+                                ec-no-quizzes
+                            "
+                        >
+
+                            <i
+                                class="
+                                    fa-solid
+                                    fa-clipboard-question
+                                "
+                            ></i>
+
+
+                            <h3>
+                                No quizzes available
+                            </h3>
+
+
+                            <p>
+                                No quizzes are currently available
+                                for this course.
+                            </p>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                    <!-- ==================================================
+                         CERTIFICATE READY
+                         ================================================== -->
+
+                    {% if certificate_eligible %}
+
+                        <div
+                            class="
+                                ec-certificate-ready
+                            "
+                        >
+
+                            <div
+                                class="
+                                    ec-certificate-ready-content
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-award
+                                        ec-certificate-ready-icon
+                                    "
+                                ></i>
+
+
+                                <div>
+
+                                    <strong>
+                                        Certificate Available
+                                    </strong>
+
+                                    <small>
+                                        You have completed the
+                                        required course activities.
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+
+                            <a
+                                href="{{ url_for(
+                                    'student.certificates'
+                                ) }}"
+                                class="
+                                    ec-btn
+                                    ec-btn-success
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fa-solid
+                                        fa-award
+                                    "
+                                ></i>
+
+                                View Certificate
+
+                            </a>
+
+                        </div>
+
+                    {% endif %}
+
+
+                </section>
+
+
+            </div>
+
+        </main>
+
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const btn =
+            document.getElementById(
+                "markCompleteBtn"
+            );
+
+        if (!btn) {
+            return;
+        }
+
+
+        btn.addEventListener(
+            "click",
+            async function () {
+
+                btn.disabled = true;
+
+
+                btn.innerHTML =
+                    `
+                    <span
+                        class="ec-inline-spinner"
+                    ></span>
+                    Saving...
+                    `;
+
+
+                const lessonId =
+                    btn.dataset.lessonId;
+
+
+                try {
+
+                    const result =
+                        await ecFetch(
+                            `/api/progress/${lessonId}`,
+                            {
+                                method: "POST"
+                            }
+                        );
+
+
+                    if (
+                        result &&
+                        result.success
+                    ) {
+
+                        window.location.reload();
+
+                        return;
+                    }
+
+
+                    btn.disabled = false;
+
+
+                    btn.innerHTML =
+                        `
+                        <i
+                            class="fa-solid fa-check"
+                        ></i>
+
+                        Mark Complete
+                        `;
+
+
+                    alert(
+                        result &&
+                        result.message
+                            ? result.message
+                            : "Something went wrong."
+                    );
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Lesson completion error:",
+                        error
+                    );
+
+
+                    btn.disabled = false;
+
+
+                    btn.innerHTML =
+                        `
+                        <i
+                            class="fa-solid fa-check"
+                        ></i>
+
+                        Mark Complete
+                        `;
+
+
+                    alert(
+                        "Unable to update lesson progress. Please try again."
+                    );
+
+                }
+
+            }
+        );
+
+    }
+);
+
 </script>
+
 {% endblock %}

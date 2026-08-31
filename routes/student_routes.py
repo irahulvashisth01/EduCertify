@@ -337,37 +337,36 @@ def enroll(course_id):
 # LEARNING INTERFACE
 # ============================================================
 
-@student_bp.route(
-    "/learn/<int:course_id>",
-)
-@student_bp.route(
-    "/learn/<int:course_id>/lesson/<int:lesson_id>",
-)
+@student_bp.route("/learn/<int:course_id>")
+@student_bp.route("/learn/<int:course_id>/lesson/<int:lesson_id>")
 @login_required
 @role_required("Student")
-def learn(
-    course_id,
-    lesson_id=None,
-):
+def learn(course_id, lesson_id=None):
     """
-    Display the learning interface for an enrolled course.
+    Student learning interface.
 
-    This route loads both lessons and quizzes for the course.
-    Quizzes are fetched directly by Quiz.CourseID so that
-    instructor-created quizzes are available on the student
+    Loads:
+        - Course
+        - Enrollment
+        - All lessons
+        - Completed lessons
+        - Previous/next lesson
+        - Module progress
+        - All quizzes belonging to the course
+        - Best quiz attempt
+        - Remaining quiz attempts
+        - Question count
+
+    Quizzes are loaded directly using Quiz.CourseID so that
+    instructor-created quizzes are visible on the student
     learning page.
-
-    Template variables added for quiz support:
-        course_quizzes:
-            A list containing the quiz object, best attempt,
-            remaining attempts, and question count.
     """
+
+    # --------------------------------------------------------
+    # CURRENT STUDENT
+    # --------------------------------------------------------
 
     student_id = session.get("user_id")
-
-    # --------------------------------------------------------
-    # Validate student session
-    # --------------------------------------------------------
 
     if not student_id:
         return redirect(
@@ -375,7 +374,7 @@ def learn(
         )
 
     # --------------------------------------------------------
-    # Find course
+    # FIND COURSE
     # --------------------------------------------------------
 
     course = db.session.get(
@@ -384,7 +383,6 @@ def learn(
     )
 
     if course is None:
-
         flash(
             "Course not found.",
             "error",
@@ -395,7 +393,7 @@ def learn(
         )
 
     # --------------------------------------------------------
-    # Verify enrollment
+    # VERIFY ENROLLMENT
     # --------------------------------------------------------
 
     enrollment = get_enrollment(
@@ -404,7 +402,6 @@ def learn(
     )
 
     if enrollment is None:
-
         flash(
             "You need to enroll in this course first.",
             "warning",
@@ -417,9 +414,9 @@ def learn(
             )
         )
 
-    # --------------------------------------------------------
-    # Collect all lessons
-    # --------------------------------------------------------
+    # ========================================================
+    # LESSONS
+    # ========================================================
 
     all_lessons = []
 
@@ -428,17 +425,20 @@ def learn(
         for lesson in module.lessons:
             all_lessons.append(lesson)
 
-    # --------------------------------------------------------
-    # Collect ALL course quizzes
-    # --------------------------------------------------------
+    # ========================================================
+    # QUIZZES
+    # ========================================================
     #
     # IMPORTANT:
-    # Instructor quizzes are linked to the course through
-    # Quiz.CourseID. Do not depend on module.quizzes here.
+    # Instructor-created quizzes are connected to the course
+    # through Quiz.CourseID.
     #
-    # This also supports final assessments whose ModuleID may
-    # be NULL.
-    # --------------------------------------------------------
+    # Therefore we query Quiz directly instead of depending
+    # on module.quizzes.
+    #
+    # This also supports final assessments whose ModuleID
+    # can be NULL.
+    # ========================================================
 
     course_quizzes = (
         Quiz.query
@@ -453,42 +453,60 @@ def learn(
     )
 
     # --------------------------------------------------------
-    # Build student-safe quiz information
+    # Prepare quiz information for template
     # --------------------------------------------------------
 
     quiz_data = []
 
     for quiz in course_quizzes:
 
-        best_attempt = get_best_attempt(
-            student_id,
-            quiz.QuizID,
-        )
+        try:
+            best_attempt = get_best_attempt(
+                student_id,
+                quiz.QuizID,
+            )
+        except Exception:
+            best_attempt = None
 
-        remaining_attempts = get_remaining_attempts(
-            student_id,
-            quiz.QuizID,
-        )
+        try:
+            remaining_attempts = get_remaining_attempts(
+                student_id,
+                quiz.QuizID,
+            )
+        except Exception:
+            remaining_attempts = 0
+
+        # Safely count questions
+        try:
+            question_count = len(
+                quiz.questions
+            )
+        except Exception:
+            question_count = 0
 
         quiz_data.append(
             {
                 "quiz": quiz,
+
                 "best_attempt": best_attempt,
+
                 "remaining": remaining_attempts,
-                "question_count": len(
-                    quiz.questions
+
+                "question_count": question_count,
+
+                "is_final": bool(
+                    getattr(
+                        quiz,
+                        "IsFinalAssessment",
+                        False,
+                    )
                 ),
             }
         )
 
-    # --------------------------------------------------------
-    # Current lesson
-    # --------------------------------------------------------
-    #
-    # A course may contain quizzes even when there are no
-    # lessons. Therefore, do NOT redirect just because
-    # all_lessons is empty.
-    # --------------------------------------------------------
+    # ========================================================
+    # CURRENT LESSON
+    # ========================================================
 
     current_lesson = None
 
@@ -501,8 +519,10 @@ def learn(
                 current_lesson = lesson
                 break
 
-        # Student attempted to access a lesson that
-        # does not belong to this course.
+        # ----------------------------------------------------
+        # Invalid lesson for this course
+        # ----------------------------------------------------
+
         if current_lesson is None:
 
             flash(
@@ -517,31 +537,37 @@ def learn(
                 )
             )
 
+    # --------------------------------------------------------
+    # Default lesson
+    # --------------------------------------------------------
+
     if current_lesson is None and all_lessons:
 
         current_lesson = all_lessons[0]
 
-    # --------------------------------------------------------
-    # Completed lessons
-    # --------------------------------------------------------
+    # ========================================================
+    # COMPLETED LESSONS
+    # ========================================================
 
     lesson_ids = [
         lesson.LessonID
         for lesson in all_lessons
     ]
 
-    completed_ids = (
-        get_completed_lesson_ids(
+    if lesson_ids:
+
+        completed_ids = get_completed_lesson_ids(
             student_id,
             lesson_ids,
         )
-        if lesson_ids
-        else set()
-    )
 
-    # --------------------------------------------------------
-    # Previous / next lesson
-    # --------------------------------------------------------
+    else:
+
+        completed_ids = set()
+
+    # ========================================================
+    # PREVIOUS / NEXT LESSON
+    # ========================================================
 
     previous_lesson = None
     next_lesson = None
@@ -552,51 +578,187 @@ def learn(
             current_lesson
         )
 
-        previous_lesson = (
-            all_lessons[current_index - 1]
-            if current_index > 0
-            else None
-        )
+        if current_index > 0:
 
-        next_lesson = (
-            all_lessons[current_index + 1]
-            if current_index < len(all_lessons) - 1
-            else None
-        )
+            previous_lesson = (
+                all_lessons[
+                    current_index - 1
+                ]
+            )
 
-    # --------------------------------------------------------
-    # Module progress
-    # --------------------------------------------------------
+        if current_index < len(all_lessons) - 1:
 
-    module_progress = {
-        module.ModuleID: get_module_progress(
+            next_lesson = (
+                all_lessons[
+                    current_index + 1
+                ]
+            )
+
+    # ========================================================
+    # MODULE PROGRESS
+    # ========================================================
+
+    module_progress = {}
+
+    for module in course.modules:
+
+        module_progress[
+            module.ModuleID
+        ] = get_module_progress(
             student_id,
             module,
         )
-        for module in course.modules
-    }
 
-    # --------------------------------------------------------
-    # Render learning interface
-    # --------------------------------------------------------
+    # ========================================================
+    # OVERALL COURSE PROGRESS
+    # ========================================================
+
+    total_lessons = len(
+        all_lessons
+    )
+
+    completed_lessons = len(
+        completed_ids
+    )
+
+    if total_lessons > 0:
+
+        course_progress = round(
+            (
+                completed_lessons
+                / total_lessons
+            )
+            * 100,
+            1,
+        )
+
+    else:
+
+        course_progress = 0.0
+
+    # ========================================================
+    # CHECK WHETHER ALL QUIZZES ARE PASSED
+    # ========================================================
+
+    passed_quizzes = 0
+
+    for item in quiz_data:
+
+        best_attempt = item.get(
+            "best_attempt"
+        )
+
+        if (
+            best_attempt is not None
+            and getattr(
+                best_attempt,
+                "Passed",
+                False,
+            )
+        ):
+
+            passed_quizzes += 1
+
+    total_quizzes = len(
+        quiz_data
+    )
+
+    all_quizzes_passed = (
+        total_quizzes > 0
+        and passed_quizzes == total_quizzes
+    )
+
+    # ========================================================
+    # FINAL ASSESSMENT
+    # ========================================================
+
+    final_assessments = [
+        item
+        for item in quiz_data
+        if item.get("is_final")
+    ]
+
+    final_assessment = (
+        final_assessments[0]
+        if final_assessments
+        else None
+    )
+
+    # ========================================================
+    # CERTIFICATE STATUS
+    # ========================================================
+
+    certificate_eligible = False
+
+    try:
+
+        eligibility = check_eligibility(
+            student_id,
+            course_id,
+        )
+
+        certificate_eligible = bool(
+            eligibility.get(
+                "eligible",
+                False,
+            )
+        )
+
+    except CertificateError:
+
+        certificate_eligible = False
+
+    except Exception:
+
+        certificate_eligible = False
+
+    # ========================================================
+    # RENDER
+    # ========================================================
 
     return render_template(
         "courses/learning.html",
+
+        # Course
         course=course,
+
+        # Enrollment
+        enrollment=enrollment,
+
+        # Lessons
         current_lesson=current_lesson,
         completed_ids=completed_ids,
         prev_lesson=previous_lesson,
         next_lesson=next_lesson,
-        enrollment=enrollment,
+
+        # Progress
         module_progress=module_progress,
+        course_progress=course_progress,
+        total_lessons=total_lessons,
+        completed_lessons=completed_lessons,
 
-        # ----------------------------------------------------
-        # NEW:
-        # Send instructor-created quizzes to the student page.
-        # ----------------------------------------------------
+        # ====================================================
+        # QUIZZES
+        # ====================================================
+
         course_quizzes=quiz_data,
-    )
 
+        # Aliases make the template easier to upgrade
+        quizzes=quiz_data,
+        quiz_list=quiz_data,
+
+        # Quiz statistics
+        total_quizzes=total_quizzes,
+        passed_quizzes=passed_quizzes,
+        all_quizzes_passed=all_quizzes_passed,
+
+        # Final assessment
+        final_assessment=final_assessment,
+        final_assessments=final_assessments,
+
+        # Certificate
+        certificate_eligible=certificate_eligible,
+    )
 
 
 # ============================================================
