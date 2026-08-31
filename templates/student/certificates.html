@@ -24,7 +24,6 @@
     {% set active_page = 'certificates' %}
     {% include "student/_sidebar.html" %}
 
-
     <main class="ec-dash-content ec-fade-in">
 
         <!-- =====================================================
@@ -33,16 +32,14 @@
 
         <section class="cert-page-header">
 
-            <div>
+            <div class="cert-header-content">
 
                 <span class="cert-eyebrow">
                     <i class="fa-solid fa-award"></i>
                     ACHIEVEMENT CENTER
                 </span>
 
-                <h1>
-                    My Certificates
-                </h1>
+                <h1>My Certificates</h1>
 
                 <p>
                     View, download, verify and share your
@@ -52,9 +49,7 @@
             </div>
 
             <div class="cert-header-icon">
-
                 <i class="fa-solid fa-certificate"></i>
-
             </div>
 
         </section>
@@ -75,16 +70,12 @@
                 </div>
 
                 <div>
-
-                    <h3>
-                        Certificate Ready
-                    </h3>
+                    <h3>Certificate Ready</h3>
 
                     <p>
                         Congratulations! You have completed
                         the requirements for the following course.
                     </p>
-
                 </div>
 
             </div>
@@ -103,7 +94,6 @@
                         </div>
 
                         <div>
-
                             <strong>
                                 {{ course.Title }}
                             </strong>
@@ -111,7 +101,6 @@
                             <span>
                                 Course requirements completed
                             </span>
-
                         </div>
 
                     </div>
@@ -166,9 +155,7 @@
                         YOUR ACHIEVEMENTS
                     </span>
 
-                    <h2>
-                        Earned Certificates
-                    </h2>
+                    <h2>Earned Certificates</h2>
 
                 </div>
 
@@ -195,27 +182,29 @@
 
                 <article class="certificate-card">
 
-
-                    <!-- ==========================================
+                    <!-- =================================================
                          CERTIFICATE PREVIEW
-                    =========================================== -->
+                    ================================================== -->
 
                     <div class="certificate-preview">
 
-                        <!-- Decorative corners -->
+                        <!-- Premium border -->
+                        <div class="certificate-border"></div>
 
+                        <!-- Decorative corners -->
                         <div class="cert-corner cert-corner-tl"></div>
                         <div class="cert-corner cert-corner-tr"></div>
                         <div class="cert-corner cert-corner-bl"></div>
                         <div class="cert-corner cert-corner-br"></div>
 
 
-                        <!-- Gold top decoration -->
-
+                        <!-- Top gold line -->
                         <div class="cert-gold-line"></div>
 
 
-                        <!-- Logo -->
+                        <!-- =================================================
+                             BRAND
+                        ================================================== -->
 
                         <div class="preview-brand">
 
@@ -226,8 +215,11 @@
                                         'static',
                                         filename='images/logo.png'
                                     ) }}"
-                                    alt="EduCertify Logo"
-                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                    alt="EduCertify"
+                                    onerror="
+                                        this.style.display='none';
+                                        this.nextElementSibling.style.display='flex';
+                                    "
                                 >
 
                                 <div class="preview-logo-fallback">
@@ -252,19 +244,19 @@
                         </div>
 
 
-                        <!-- Certificate heading -->
+                        <!-- =================================================
+                             TITLE
+                        ================================================== -->
 
                         <div class="preview-heading">
 
-                            <span>
-                                CERTIFICATE
-                            </span>
+                            <h3>CERTIFICATE</h3>
 
                             <div class="preview-subheading">
 
                                 <span></span>
 
-                                OF COMPLETION
+                                <strong>OF COMPLETION</strong>
 
                                 <span></span>
 
@@ -273,16 +265,15 @@
                         </div>
 
 
-                        <!-- Presented to -->
-
+                        <!-- Presented -->
                         <div class="preview-presented">
-
                             This certificate is proudly presented to
-
                         </div>
 
 
-                        <!-- Student -->
+                        <!-- =================================================
+                             STUDENT NAME
+                        ================================================== -->
 
                         <div class="preview-student">
 
@@ -294,20 +285,18 @@
 
                         </div>
 
+                        <div class="preview-name-line"></div>
 
-                        <div class="preview-gold-divider"></div>
 
-
-                        <!-- Completion text -->
-
+                        <!-- Completion -->
                         <div class="preview-completion">
-
                             for successfully completing the course
-
                         </div>
 
 
-                        <!-- Course -->
+                        <!-- =================================================
+                             COURSE
+                        ================================================== -->
 
                         <div class="preview-course">
 
@@ -316,13 +305,13 @@
                         </div>
 
 
-                        <!-- Score -->
+                        <!-- =================================================
+                             SCORE
+                        ================================================== -->
 
                         <div class="preview-score">
 
-                            <span>
-                                Final Score:
-                            </span>
+                            <span>Final Score:</span>
 
                             <strong>
                                 {{ cert.FinalScore }}%
@@ -331,17 +320,21 @@
                         </div>
 
 
-                        <!-- Issue Date -->
+                        <!-- =================================================
+                             DATE
+                        ================================================== -->
 
                         <div class="preview-date">
 
                             <i class="fa-regular fa-calendar"></i>
 
-                            Issued on:
+                            <span>Issued on:</span>
 
                             {% if cert.IssueDate %}
 
-                                {{ cert.IssueDate.strftime('%d %B %Y') }}
+                                {{ cert.IssueDate.strftime(
+                                    '%d %B %Y'
+                                ) }}
 
                             {% else %}
 
@@ -352,7 +345,49 @@
                         </div>
 
 
-                        <!-- Signature -->
+                        <!-- =================================================
+                             CERTIFIED SEAL
+                        ================================================== -->
+
+                        <div class="certificate-seal">
+
+                            <div class="seal-outer">
+
+                                <div class="seal-inner">
+
+                                    <div class="seal-stars">
+                                        ★ ★ ★
+                                    </div>
+
+                                    <i class="fa-solid fa-graduation-cap"></i>
+
+                                    <strong>
+                                        CERTIFIED
+                                    </strong>
+
+                                    <small>
+                                        BY EDUCERTIFY
+                                    </small>
+
+                                    <div class="seal-stars">
+                                        ★ ★ ★
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <div class="seal-ribbon">
+                                <span></span>
+                                <span></span>
+                            </div>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             SIGNATURE
+                        ================================================== -->
 
                         <div class="preview-signature">
 
@@ -367,57 +402,27 @@
                             </strong>
 
                             <span>
-                                Founder & CEO, EduCertify
+                                Founder &amp; CEO, EduCertify
                             </span>
 
                         </div>
 
 
-                        <!-- Seal -->
-
-                        <div class="certificate-seal">
-
-                            <div class="seal-inner">
-
-                                <div class="seal-stars">
-                                    ★ ★ ★
-                                </div>
-
-                                <i class="fa-solid fa-graduation-cap"></i>
-
-                                <strong>
-                                    CERTIFIED
-                                </strong>
-
-                                <small>
-                                    BY EDUCERTIFY
-                                </small>
-
-                                <div class="seal-stars">
-                                    ★ ★ ★
-                                </div>
-
-                            </div>
-
-                            <div class="seal-ribbon">
-                                <span></span>
-                                <span></span>
-                            </div>
-
-                        </div>
-
-
-                        <!-- QR -->
+                        <!-- =================================================
+                             QR CODE
+                        ================================================== -->
 
                         <div class="preview-qr">
 
-                            <div class="qr-placeholder">
+                            <div class="qr-box">
 
                                 {% if cert.CertificateNumber %}
 
-                                    <span>
-                                        QR
-                                    </span>
+                                    <div class="qr-pattern">
+                                        <div class="qr-center">
+                                            <i class="fa-solid fa-shield-halved"></i>
+                                        </div>
+                                    </div>
 
                                 {% else %}
 
@@ -427,19 +432,19 @@
 
                             </div>
 
-                            <small>
-                                Scan to verify
-                            </small>
+                            <strong>Scan to verify</strong>
 
                         </div>
 
 
-                        <!-- Certificate ID -->
+                        <!-- =================================================
+                             CERTIFICATE ID
+                        ================================================== -->
 
                         <div class="preview-id">
 
                             <span>
-                                Certificate ID
+                                CERTIFICATE ID
                             </span>
 
                             <strong>
@@ -449,49 +454,70 @@
                         </div>
 
 
-                        <!-- Watermark -->
+                        <!-- =================================================
+                             WATERMARK
+                        ================================================== -->
 
                         <div class="preview-watermark">
 
                             <i class="fa-solid fa-graduation-cap"></i>
 
+                            <span>EDUCERTIFY</span>
+
                         </div>
 
 
-                        <!-- Bottom feature bar -->
+                        <!-- =================================================
+                             BOTTOM TRUST BAR
+                        ================================================== -->
 
                         <div class="preview-footer">
 
                             <div>
+
                                 <i class="fa-solid fa-book-open"></i>
+
                                 <span>
                                     Industry Relevant<br>
                                     Curriculum
                                 </span>
+
                             </div>
 
+
                             <div>
+
                                 <i class="fa-solid fa-user-tie"></i>
+
                                 <span>
                                     Expert<br>
                                     Instructors
                                 </span>
+
                             </div>
 
+
                             <div>
+
                                 <i class="fa-solid fa-medal"></i>
+
                                 <span>
                                     Verified<br>
                                     Certificate
                                 </span>
+
                             </div>
 
+
                             <div>
+
                                 <i class="fa-solid fa-globe"></i>
+
                                 <span>
                                     Lifetime<br>
                                     Verification
                                 </span>
+
                             </div>
 
                         </div>
@@ -499,18 +525,17 @@
                     </div>
 
 
-                    <!-- ==========================================
+
+                    <!-- =====================================================
                          CERTIFICATE INFORMATION
-                    =========================================== -->
+                    ====================================================== -->
 
                     <div class="certificate-info">
 
                         <div class="certificate-info-header">
 
                             <div class="certificate-award-icon">
-
                                 <i class="fa-solid fa-award"></i>
-
                             </div>
 
                             <div>
@@ -571,7 +596,9 @@
 
                                     {% if cert.IssueDate %}
 
-                                        {{ cert.IssueDate.strftime('%d %b %Y') }}
+                                        {{ cert.IssueDate.strftime(
+                                            '%d %b %Y'
+                                        ) }}
 
                                     {% else %}
 
@@ -594,21 +621,15 @@
                                 {% if cert.Status == 'Valid' %}
 
                                     <strong class="status-valid">
-
                                         <i class="fa-solid fa-circle-check"></i>
-
                                         Valid
-
                                     </strong>
 
                                 {% else %}
 
                                     <strong class="status-revoked">
-
                                         <i class="fa-solid fa-circle-xmark"></i>
-
                                         Revoked
-
                                     </strong>
 
                                 {% endif %}
@@ -618,7 +639,9 @@
                         </div>
 
 
-                        <!-- Actions -->
+                        <!-- =================================================
+                             ACTIONS
+                        ================================================== -->
 
                         <div class="certificate-actions">
 
@@ -630,7 +653,6 @@
                                     certificate_id=cert.CertificateID
                                 ) }}"
                                 class="cert-action cert-action-primary"
-                                target="_blank"
                             >
 
                                 <i class="fa-solid fa-file-pdf"></i>
@@ -638,20 +660,6 @@
                                 Download PDF
 
                             </a>
-
-                            {% else %}
-
-                            <button
-                                type="button"
-                                class="cert-action cert-action-disabled"
-                                disabled
-                            >
-
-                                <i class="fa-solid fa-file-circle-xmark"></i>
-
-                                PDF Unavailable
-
-                            </button>
 
                             {% endif %}
 
@@ -696,71 +704,70 @@
 
             </div>
 
+
+            <!-- =====================================================
+                 TRUST FEATURES
+            ====================================================== -->
+
+            <section class="certificate-trust-section">
+
+                <div class="trust-item">
+
+                    <i class="fa-solid fa-shield-halved"></i>
+
+                    <div>
+                        <strong>Verified Certificates</strong>
+                        <span>Authentic &amp; publicly verifiable</span>
+                    </div>
+
+                </div>
+
+
+                <div class="trust-item">
+
+                    <i class="fa-solid fa-qrcode"></i>
+
+                    <div>
+                        <strong>QR Verification</strong>
+                        <span>Verify certificates instantly</span>
+                    </div>
+
+                </div>
+
+
+                <div class="trust-item">
+
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
+
+                    <div>
+                        <strong>Digital Download</strong>
+                        <span>Keep your certificate forever</span>
+                    </div>
+
+                </div>
+
+
+                <div class="trust-item">
+
+                    <i class="fa-solid fa-share-nodes"></i>
+
+                    <div>
+                        <strong>Easy Sharing</strong>
+                        <span>Share your achievement</span>
+                    </div>
+
+                </div>
+
+            </section>
+
         </section>
-
-
-        <!-- =====================================================
-             ACHIEVEMENT FOOTER
-        ====================================================== -->
-
-        <section class="certificate-trust-section">
-
-            <div class="trust-item">
-
-                <i class="fa-solid fa-shield-halved"></i>
-
-                <div>
-                    <strong>Verified Certificates</strong>
-                    <span>Authentic & publicly verifiable</span>
-                </div>
-
-            </div>
-
-
-            <div class="trust-item">
-
-                <i class="fa-solid fa-qrcode"></i>
-
-                <div>
-                    <strong>QR Verification</strong>
-                    <span>Verify certificates instantly</span>
-                </div>
-
-            </div>
-
-
-            <div class="trust-item">
-
-                <i class="fa-solid fa-cloud-arrow-down"></i>
-
-                <div>
-                    <strong>Digital Download</strong>
-                    <span>Keep your certificate forever</span>
-                </div>
-
-            </div>
-
-
-            <div class="trust-item">
-
-                <i class="fa-solid fa-share-nodes"></i>
-
-                <div>
-                    <strong>Easy Sharing</strong>
-                    <span>Share your achievement</span>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        {% elif not eligible_courses %}
 
 
         <!-- =====================================================
              EMPTY STATE
         ====================================================== -->
+
+        {% elif not eligible_courses %}
 
         <section class="certificate-empty">
 
@@ -769,6 +776,10 @@
                 <i class="fa-solid fa-award"></i>
 
             </div>
+
+            <span class="empty-eyebrow">
+                YOUR ACHIEVEMENTS
+            </span>
 
             <h2>
                 Your certificates will appear here
@@ -791,7 +802,6 @@
             </a>
 
         </section>
-
 
         {% endif %}
 
@@ -828,7 +838,6 @@ function shareCertificate(button) {
         "/certificates/verify/" +
         encodeURIComponent(certificateId);
 
-
     const shareText =
         "I successfully completed " +
         course +
@@ -836,44 +845,58 @@ function shareCertificate(button) {
         "Certificate ID: " +
         certificateId;
 
-
     if (navigator.share) {
 
         navigator.share({
 
-            title:
-                "EduCertify Certificate",
+            title: "EduCertify Certificate",
 
-            text:
-                shareText,
+            text: shareText,
 
-            url:
-                verificationUrl
+            url: verificationUrl
 
         }).catch(function () {});
 
     } else {
 
-        navigator.clipboard.writeText(
+        const copyText =
             shareText +
             "\nVerify: " +
-            verificationUrl
-        ).then(function () {
+            verificationUrl;
 
-            alert(
-                "Certificate verification link copied!"
-            );
+        if (navigator.clipboard) {
 
-        }).catch(function () {
+            navigator.clipboard.writeText(copyText)
+                .then(function () {
 
-            prompt(
-                "Copy certificate verification link:",
-                verificationUrl
-            );
+                    alert(
+                        "Certificate verification link copied!"
+                    );
 
-        });
+                })
+                .catch(function () {
+
+                    fallbackCopy(verificationUrl);
+
+                });
+
+        } else {
+
+            fallbackCopy(verificationUrl);
+
+        }
 
     }
+
+}
+
+
+function fallbackCopy(url) {
+
+    window.prompt(
+        "Copy certificate verification link:",
+        url
+    );
 
 }
 

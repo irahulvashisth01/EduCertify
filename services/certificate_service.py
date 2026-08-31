@@ -10,7 +10,7 @@ Business logic for:
 - Unique certificate number generation
 - Certificate creation
 - QR-code generation
-- PDF certificate generation
+- Professional PDF certificate generation
 - Public certificate verification
 - Certificate revocation
 
@@ -24,6 +24,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.lib.utils import ImageReader
 
 from database.database import db
 from database.models import (
@@ -69,14 +70,7 @@ def check_eligibility(
     2. All course lessons must be completed.
     3. All module quizzes must be passed.
     4. Final assessment must be passed if one exists.
-
-    Returns:
-        Dictionary containing eligibility information.
     """
-
-    # --------------------------------------------------------
-    # Find course
-    # --------------------------------------------------------
 
     course = db.session.get(
         Course,
@@ -87,10 +81,6 @@ def check_eligibility(
         raise CertificateError(
             "Course not found."
         )
-
-    # --------------------------------------------------------
-    # Check enrollment
-    # --------------------------------------------------------
 
     enrollment = (
         Enrollment.query
@@ -115,6 +105,7 @@ def check_eligibility(
     for module in course.modules:
 
         for lesson in module.lessons:
+
             lesson_ids.append(
                 lesson.LessonID
             )
@@ -208,8 +199,6 @@ def check_eligibility(
 
     if final_assessments:
 
-        # The first final assessment is treated
-        # as the course final assessment.
         final_quiz = final_assessments[0]
 
         best_attempt = (
@@ -346,7 +335,6 @@ def _generate_unique_certificate_number():
     exist in the database.
     """
 
-    # Try several times to avoid an accidental infinite loop.
     for _ in range(20):
 
         certificate_number = (
@@ -369,11 +357,13 @@ def _generate_unique_certificate_number():
         )
 
         if existing is None:
+
             return certificate_number
 
     raise CertificateError(
         "Unable to generate a unique certificate number."
     )
+
 
 # ============================================================
 # AUTO ISSUE CERTIFICATE IF ELIGIBLE
@@ -390,13 +380,6 @@ def issue_certificate_if_eligible(
 
     Returns:
         Certificate | None
-
-    Returns None when the student is not yet eligible.
-
-    Raises:
-        CertificateError:
-            If certificate generation itself fails after the
-            student has become eligible.
     """
 
     if not student_id:
@@ -405,27 +388,23 @@ def issue_certificate_if_eligible(
     if not course_id:
         return None
 
-    # --------------------------------------------------------
-    # Check eligibility first
-    # --------------------------------------------------------
-
     eligibility = check_eligibility(
         student_id,
         course_id,
     )
 
-    if not eligibility.get("eligible", False):
+    if not eligibility.get(
+        "eligible",
+        False,
+    ):
         return None
-
-    # --------------------------------------------------------
-    # Issue certificate
-    # --------------------------------------------------------
 
     return issue_certificate(
         student_id,
         course_id,
         app_config,
     )
+
 
 # ============================================================
 # ISSUE CERTIFICATE
@@ -444,11 +423,11 @@ def issue_certificate(
 
     - Certificate database record
     - QR code
-    - PDF certificate
+    - Professional PDF certificate
     """
 
     # --------------------------------------------------------
-    # Check if certificate already exists
+    # Existing certificate
     # --------------------------------------------------------
 
     existing = (
@@ -464,7 +443,7 @@ def issue_certificate(
         return existing
 
     # --------------------------------------------------------
-    # Check eligibility
+    # Eligibility
     # --------------------------------------------------------
 
     eligibility = check_eligibility(
@@ -480,7 +459,7 @@ def issue_certificate(
         )
 
     # --------------------------------------------------------
-    # Find course/enrollment
+    # Course
     # --------------------------------------------------------
 
     course = db.session.get(
@@ -493,6 +472,10 @@ def issue_certificate(
         raise CertificateError(
             "Course not found."
         )
+
+    # --------------------------------------------------------
+    # Enrollment
+    # --------------------------------------------------------
 
     enrollment = (
         Enrollment.query
@@ -510,7 +493,7 @@ def issue_certificate(
         )
 
     # --------------------------------------------------------
-    # Calculate final score
+    # Final score
     # --------------------------------------------------------
 
     final_score = _calculate_final_score(
@@ -519,7 +502,7 @@ def issue_certificate(
     )
 
     # --------------------------------------------------------
-    # Generate certificate number
+    # Certificate number
     # --------------------------------------------------------
 
     certificate_number = (
@@ -527,7 +510,7 @@ def issue_certificate(
     )
 
     # --------------------------------------------------------
-    # Create certificate record
+    # Certificate database record
     # --------------------------------------------------------
 
     certificate = Certificate(
@@ -562,7 +545,7 @@ def issue_certificate(
         ) from exc
 
     # --------------------------------------------------------
-    # Certificate storage directory
+    # Certificate folder
     # --------------------------------------------------------
 
     certificate_folder = (
@@ -607,7 +590,7 @@ def issue_certificate(
     )
 
     # --------------------------------------------------------
-    # Generate QR code
+    # QR code
     # --------------------------------------------------------
 
     qr_filename = (
@@ -639,7 +622,7 @@ def issue_certificate(
     )
 
     # --------------------------------------------------------
-    # Generate PDF
+    # PDF
     # --------------------------------------------------------
 
     pdf_filename = (
@@ -653,11 +636,11 @@ def issue_certificate(
             certificate_folder,
             pdf_filename,
             qr_filename,
+            app_config,
         )
 
     except Exception as exc:
 
-        # Remove generated QR file if possible.
         qr_path = os.path.join(
             certificate_folder,
             qr_filename,
@@ -667,6 +650,7 @@ def issue_certificate(
 
             try:
                 os.remove(qr_path)
+
             except OSError:
                 pass
 
@@ -716,7 +700,488 @@ def issue_certificate(
 
 
 # ============================================================
-# GENERATE CERTIFICATE PDF
+# PDF HELPER FUNCTIONS
+# ============================================================
+
+def _draw_gold_line(
+    pdf,
+    x1,
+    y,
+    x2,
+    width=1,
+):
+    """
+    Draw decorative gold line.
+    """
+
+    pdf.setStrokeColor(
+        HexColor("#c99a35")
+    )
+
+    pdf.setLineWidth(
+        width
+    )
+
+    pdf.line(
+        x1,
+        y,
+        x2,
+        y,
+    )
+
+
+def _draw_corner_ribbon(
+    pdf,
+    x,
+    y,
+    size,
+    flip_x=False,
+    flip_y=False,
+):
+    """
+    Decorative navy/gold corner element.
+    """
+
+    navy = HexColor("#071b3a")
+    gold = HexColor("#d4aa4a")
+
+    direction_x = -1 if flip_x else 1
+    direction_y = -1 if flip_y else 1
+
+    pdf.saveState()
+
+    pdf.setFillColor(
+        navy
+    )
+
+    path = pdf.beginPath()
+
+    path.moveTo(
+        x,
+        y,
+    )
+
+    path.lineTo(
+        x + direction_x * size,
+        y,
+    )
+
+    path.lineTo(
+        x,
+        y + direction_y * size,
+    )
+
+    path.close()
+
+    pdf.drawPath(
+        path,
+        fill=1,
+        stroke=0,
+    )
+
+    pdf.setFillColor(
+        gold
+    )
+
+    pdf.setLineWidth(
+        5
+    )
+
+    pdf.line(
+        x,
+        y + direction_y * 8,
+        x + direction_x * (size * .82),
+        y + direction_y * (size * .82),
+    )
+
+    pdf.restoreState()
+
+
+def _draw_seal(
+    pdf,
+    center_x,
+    center_y,
+):
+    """
+    Draw EduCertify certification seal.
+    """
+
+    navy = HexColor("#071b3a")
+    navy_light = HexColor("#123d77")
+    gold = HexColor("#d5aa45")
+    gold_light = HexColor("#f3d47b")
+    white = HexColor("#ffffff")
+
+    pdf.saveState()
+
+    # Outer gold circle
+    pdf.setFillColor(
+        gold
+    )
+
+    pdf.circle(
+        center_x,
+        center_y,
+        1.55 * cm,
+        fill=1,
+        stroke=0,
+    )
+
+    # Navy circle
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.circle(
+        center_x,
+        center_y,
+        1.30 * cm,
+        fill=1,
+        stroke=0,
+    )
+
+    # Inner circle
+    pdf.setStrokeColor(
+        gold_light
+    )
+
+    pdf.setLineWidth(
+        1
+    )
+
+    pdf.circle(
+        center_x,
+        center_y,
+        1.08 * cm,
+        fill=0,
+        stroke=1,
+    )
+
+    # Stars
+    pdf.setFillColor(
+        gold_light
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        7,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y + .72 * cm,
+        "★  ★  ★",
+    )
+
+    # Graduation cap symbol
+    pdf.setFillColor(
+        white
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        15,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y + .12 * cm,
+        "EDU",
+    )
+
+    # Certified
+    pdf.setFillColor(
+        gold_light
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        6.5,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y - .28 * cm,
+        "CERTIFIED",
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        4.8,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y - .52 * cm,
+        "BY EDUCERTIFY",
+    )
+
+    # Bottom stars
+    pdf.setFont(
+        "Helvetica-Bold",
+        6,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y - .78 * cm,
+        "★  ★  ★",
+    )
+
+    # Ribbon
+    ribbon_y = center_y - 1.55 * cm
+
+    pdf.setFillColor(
+        navy_light
+    )
+
+    left_path = pdf.beginPath()
+
+    left_path.moveTo(
+        center_x - .72 * cm,
+        ribbon_y,
+    )
+
+    left_path.lineTo(
+        center_x - .22 * cm,
+        ribbon_y,
+    )
+
+    left_path.lineTo(
+        center_x - .35 * cm,
+        ribbon_y - 1.25 * cm,
+    )
+
+    left_path.lineTo(
+        center_x - .58 * cm,
+        ribbon_y - .92 * cm,
+    )
+
+    left_path.lineTo(
+        center_x - .82 * cm,
+        ribbon_y - 1.25 * cm,
+    )
+
+    left_path.close()
+
+    pdf.drawPath(
+        left_path,
+        fill=1,
+        stroke=0,
+    )
+
+    right_path = pdf.beginPath()
+
+    right_path.moveTo(
+        center_x + .22 * cm,
+        ribbon_y,
+    )
+
+    right_path.lineTo(
+        center_x + .72 * cm,
+        ribbon_y,
+    )
+
+    right_path.lineTo(
+        center_x + .82 * cm,
+        ribbon_y - 1.25 * cm,
+    )
+
+    right_path.lineTo(
+        center_x + .58 * cm,
+        ribbon_y - .92 * cm,
+    )
+
+    right_path.lineTo(
+        center_x + .35 * cm,
+        ribbon_y - 1.25 * cm,
+    )
+
+    right_path.close()
+
+    pdf.drawPath(
+        right_path,
+        fill=1,
+        stroke=0,
+    )
+
+    pdf.restoreState()
+
+
+def _draw_logo(
+    pdf,
+    logo_path,
+    center_x,
+    center_y,
+):
+    """
+    Draw EduCertify logo if available.
+
+    If no logo file exists, draw a clean fallback
+    graduation-cap emblem.
+    """
+
+    navy = HexColor("#071b3a")
+    blue = HexColor("#2563eb")
+    gold = HexColor("#c99a35")
+
+    if (
+        logo_path
+        and os.path.exists(logo_path)
+    ):
+
+        try:
+
+            pdf.drawImage(
+                ImageReader(
+                    logo_path
+                ),
+                center_x - 1.15 * cm,
+                center_y - .65 * cm,
+                width=2.3 * cm,
+                height=1.3 * cm,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+
+            return
+
+        except Exception:
+            pass
+
+    # Fallback logo circle
+    pdf.setFillColor(
+        HexColor("#ffffff")
+    )
+
+    pdf.setStrokeColor(
+        gold
+    )
+
+    pdf.setLineWidth(
+        1.5
+    )
+
+    pdf.circle(
+        center_x,
+        center_y,
+        .65 * cm,
+        fill=1,
+        stroke=1,
+    )
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        9,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y - .08 * cm,
+        "EC",
+    )
+
+    pdf.setFillColor(
+        blue
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        7,
+    )
+
+    pdf.drawCentredString(
+        center_x,
+        center_y - 1.05 * cm,
+        "EDUCERTIFY",
+    )
+
+
+def _find_logo_path(
+    app_config,
+):
+    """
+    Try common EduCertify logo locations.
+
+    This avoids breaking deployment if the exact
+    static folder configuration differs.
+    """
+
+    configured = (
+        app_config.get(
+            "CERTIFICATE_LOGO_PATH"
+        )
+    )
+
+    if configured:
+        candidates = [
+            configured
+        ]
+    else:
+        candidates = []
+
+    static_folder = (
+        app_config.get(
+            "STATIC_FOLDER"
+        )
+    )
+
+    if static_folder:
+
+        candidates.extend(
+            [
+                os.path.join(
+                    static_folder,
+                    "images",
+                    "logo.png",
+                ),
+                os.path.join(
+                    static_folder,
+                    "img",
+                    "logo.png",
+                ),
+                os.path.join(
+                    static_folder,
+                    "logo.png",
+                ),
+            ]
+        )
+
+    # Common project paths
+    candidates.extend(
+        [
+            os.path.join(
+                "static",
+                "images",
+                "logo.png",
+            ),
+            os.path.join(
+                "static",
+                "img",
+                "logo.png",
+            ),
+            os.path.join(
+                "static",
+                "logo.png",
+            ),
+        ]
+    )
+
+    for path in candidates:
+
+        if path and os.path.exists(path):
+
+            return path
+
+    return None
+
+
+# ============================================================
+# GENERATE PROFESSIONAL CERTIFICATE PDF
 # ============================================================
 
 def generate_certificate_pdf(
@@ -724,11 +1189,33 @@ def generate_certificate_pdf(
     folder: str,
     filename: str,
     qr_filename: str,
+    app_config=None,
 ):
     """
-    Generate a professional landscape certificate
-    using ReportLab.
+    Generate a premium professional landscape
+    EduCertify certificate using ReportLab.
+
+    Design includes:
+
+    - EduCertify branding
+    - Navy + gold theme
+    - Double border
+    - Decorative corner ribbons
+    - Certificate title
+    - Student name
+    - Course name
+    - Final score
+    - Issue date
+    - Certification seal
+    - Founder signature
+    - Certificate ID
+    - QR verification
+    - Watermark
+    - Trust-feature footer
     """
+
+    if app_config is None:
+        app_config = {}
 
     os.makedirs(
         folder,
@@ -745,6 +1232,10 @@ def generate_certificate_pdf(
         qr_filename,
     )
 
+    # --------------------------------------------------------
+    # PAGE
+    # --------------------------------------------------------
+
     page_size = landscape(A4)
 
     width, height = page_size
@@ -754,43 +1245,87 @@ def generate_certificate_pdf(
         pagesize=page_size,
     )
 
+    pdf.setTitle(
+        "EduCertify Certificate"
+    )
+
+    pdf.setAuthor(
+        "EduCertify"
+    )
+
     # --------------------------------------------------------
-    # Colors
+    # COLORS
     # --------------------------------------------------------
 
     navy = HexColor(
-        "#0b1f3a"
+        "#071b3a"
+    )
+
+    navy_2 = HexColor(
+        "#0d2d59"
     )
 
     blue = HexColor(
         "#2563eb"
     )
 
+    gold = HexColor(
+        "#c99a35"
+    )
+
+    gold_light = HexColor(
+        "#f3d47b"
+    )
+
+    gold_pale = HexColor(
+        "#fff8e8"
+    )
+
     gray = HexColor(
         "#64748b"
     )
 
-    # --------------------------------------------------------
-    # Outer border
-    # --------------------------------------------------------
-
-    pdf.setStrokeColor(
-        blue
+    light_gray = HexColor(
+        "#eef2f7"
     )
 
-    pdf.setLineWidth(
-        3
+    white = HexColor(
+        "#ffffff"
+    )
+
+    # --------------------------------------------------------
+    # BACKGROUND
+    # --------------------------------------------------------
+
+    pdf.setFillColor(
+        white
     )
 
     pdf.rect(
-        1.2 * cm,
-        1.2 * cm,
-        width - 2.4 * cm,
-        height - 2.4 * cm,
+        0,
+        0,
+        width,
+        height,
+        fill=1,
+        stroke=0,
+    )
+
+    # Subtle top background
+    pdf.setFillColor(
+        HexColor("#fbfcff")
+    )
+
+    pdf.rect(
+        0,
+        height * .15,
+        width,
+        height * .85,
+        fill=1,
+        stroke=0,
     )
 
     # --------------------------------------------------------
-    # Inner border
+    # OUTER BORDER
     # --------------------------------------------------------
 
     pdf.setStrokeColor(
@@ -798,18 +1333,194 @@ def generate_certificate_pdf(
     )
 
     pdf.setLineWidth(
-        0.75
+        1.2
+    )
+
+    pdf.roundRect(
+        .65 * cm,
+        .65 * cm,
+        width - 1.3 * cm,
+        height - 1.3 * cm,
+        .28 * cm,
+        fill=0,
+        stroke=1,
+    )
+
+    # Gold border
+    pdf.setStrokeColor(
+        gold
+    )
+
+    pdf.setLineWidth(
+        2
     )
 
     pdf.rect(
-        1.5 * cm,
-        1.5 * cm,
-        width - 3 * cm,
-        height - 3 * cm,
+        1.0 * cm,
+        1.0 * cm,
+        width - 2.0 * cm,
+        height - 2.0 * cm,
+        fill=0,
+        stroke=1,
+    )
+
+    # Inner fine border
+    pdf.setStrokeColor(
+        HexColor("#b58a2e")
+    )
+
+    pdf.setLineWidth(
+        .5
+    )
+
+    pdf.rect(
+        1.25 * cm,
+        1.25 * cm,
+        width - 2.5 * cm,
+        height - 2.5 * cm,
+        fill=0,
+        stroke=1,
     )
 
     # --------------------------------------------------------
-    # Header
+    # CORNER DECORATIONS
+    # --------------------------------------------------------
+
+    _draw_corner_ribbon(
+        pdf,
+        1.0 * cm,
+        height - 1.0 * cm,
+        3.1 * cm,
+        False,
+        False,
+    )
+
+    _draw_corner_ribbon(
+        pdf,
+        width - 1.0 * cm,
+        height - 1.0 * cm,
+        3.1 * cm,
+        True,
+        False,
+    )
+
+    _draw_corner_ribbon(
+        pdf,
+        1.0 * cm,
+        1.0 * cm,
+        2.8 * cm,
+        False,
+        True,
+    )
+
+    _draw_corner_ribbon(
+        pdf,
+        width - 1.0 * cm,
+        1.0 * cm,
+        2.8 * cm,
+        True,
+        True,
+    )
+
+    # --------------------------------------------------------
+    # WATERMARK
+    # --------------------------------------------------------
+
+    pdf.saveState()
+
+    pdf.setFillColor(
+        HexColor("#071b3a")
+    )
+
+    pdf.setFillAlpha(
+        0.035
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        70,
+    )
+
+    pdf.translate(
+        width / 2,
+        height / 2,
+    )
+
+    pdf.rotate(
+        -15
+    )
+
+    pdf.drawCentredString(
+        0,
+        0,
+        "EDUCERTIFY",
+    )
+
+    pdf.restoreState()
+
+    # --------------------------------------------------------
+    # LOGO
+    # --------------------------------------------------------
+
+    logo_path = _find_logo_path(
+        app_config
+    )
+
+    _draw_logo(
+        pdf,
+        logo_path,
+        width / 2 - 3.8 * cm,
+        height - 2.35 * cm,
+    )
+
+    # --------------------------------------------------------
+    # BRAND NAME
+    # --------------------------------------------------------
+
+    brand_x = width / 2 - .7 * cm
+
+    pdf.setFillColor(
+        blue
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        24,
+    )
+
+    pdf.drawString(
+        brand_x,
+        height - 2.35 * cm,
+        "Edu",
+    )
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.drawString(
+        brand_x + 1.55 * cm,
+        height - 2.35 * cm,
+        "Certify",
+    )
+
+    pdf.setFillColor(
+        gray
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        8.5,
+    )
+
+    pdf.drawString(
+        brand_x + .05 * cm,
+        height - 2.88 * cm,
+        "Learn • Certify • Succeed",
+    )
+
+    # --------------------------------------------------------
+    # CERTIFICATE TITLE
     # --------------------------------------------------------
 
     pdf.setFillColor(
@@ -818,51 +1529,84 @@ def generate_certificate_pdf(
 
     pdf.setFont(
         "Helvetica-Bold",
-        26,
+        35,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 3.2 * cm,
-        "EDUCERTIFY",
+        height - 4.35 * cm,
+        "CERTIFICATE",
+    )
+
+    # Gold subtitle
+    subtitle_y = (
+        height - 4.95 * cm
+    )
+
+    _draw_gold_line(
+        pdf,
+        width / 2 - 5.0 * cm,
+        subtitle_y + .06 * cm,
+        width / 2 - 1.85 * cm,
+        1.2,
+    )
+
+    _draw_gold_line(
+        pdf,
+        width / 2 + 1.85 * cm,
+        subtitle_y + .06 * cm,
+        width / 2 + 5.0 * cm,
+        1.2,
+    )
+
+    pdf.setFillColor(
+        HexColor("#9b7425")
     )
 
     pdf.setFont(
         "Helvetica",
-        14,
+        13,
     )
+
+    pdf.drawCentredString(
+        width / 2,
+        subtitle_y,
+        "OF COMPLETION",
+    )
+
+    # Small ornament
+    pdf.setFont(
+        "Helvetica-Bold",
+        10,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        subtitle_y - .42 * cm,
+        "✦",
+    )
+
+    # --------------------------------------------------------
+    # PRESENTED TO
+    # --------------------------------------------------------
 
     pdf.setFillColor(
         gray
     )
 
-    pdf.drawCentredString(
-        width / 2,
-        height - 4.1 * cm,
-        "Certificate of Completion",
-    )
-
-    # --------------------------------------------------------
-    # Intro text
-    # --------------------------------------------------------
-
-    pdf.setFillColor(
-        gray
-    )
-
     pdf.setFont(
         "Helvetica",
-        12,
+        10.5,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 5.6 * cm,
+        height - 6.05 * cm,
         "This certificate is proudly presented to",
     )
 
     # --------------------------------------------------------
-    # Student name
+    # STUDENT NAME
     # --------------------------------------------------------
 
     student_name = (
@@ -875,19 +1619,37 @@ def generate_certificate_pdf(
         navy
     )
 
+    # Keep long names inside certificate
+    student_font_size = 27
+
+    if len(student_name) > 28:
+        student_font_size = 23
+
+    if len(student_name) > 38:
+        student_font_size = 19
+
     pdf.setFont(
         "Helvetica-Bold",
-        28,
+        student_font_size,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 6.8 * cm,
+        height - 7.15 * cm,
         student_name,
     )
 
+    # Name gold underline
+    _draw_gold_line(
+        pdf,
+        width / 2 - 4.8 * cm,
+        height - 7.45 * cm,
+        width / 2 + 4.8 * cm,
+        1.0,
+    )
+
     # --------------------------------------------------------
-    # Course completion
+    # COMPLETION
     # --------------------------------------------------------
 
     pdf.setFillColor(
@@ -896,14 +1658,18 @@ def generate_certificate_pdf(
 
     pdf.setFont(
         "Helvetica",
-        12,
+        10.5,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 7.9 * cm,
-        "for successfully completing",
+        height - 8.05 * cm,
+        "for successfully completing the course",
     )
+
+    # --------------------------------------------------------
+    # COURSE TITLE
+    # --------------------------------------------------------
 
     course_title = (
         certificate.course.Title
@@ -911,33 +1677,32 @@ def generate_certificate_pdf(
         else "Course"
     )
 
+    course_font_size = 21
+
+    if len(course_title) > 34:
+        course_font_size = 18
+
+    if len(course_title) > 50:
+        course_font_size = 15
+
     pdf.setFillColor(
         blue
     )
 
     pdf.setFont(
         "Helvetica-Bold",
-        20,
+        course_font_size,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 8.9 * cm,
+        height - 9.0 * cm,
         course_title,
     )
 
     # --------------------------------------------------------
-    # Score
+    # SCORE
     # --------------------------------------------------------
-
-    pdf.setFillColor(
-        navy
-    )
-
-    pdf.setFont(
-        "Helvetica-Bold",
-        13,
-    )
 
     score = (
         certificate.FinalScore
@@ -945,17 +1710,36 @@ def generate_certificate_pdf(
         else 0
     )
 
+    score_y = (
+        height - 9.85 * cm
+    )
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        11,
+    )
+
+    score_text = (
+        f"Final Score: {float(score):.1f}%"
+    )
+
     pdf.drawCentredString(
         width / 2,
-        height - 9.9 * cm,
-        f"Final Score: {score}%",
+        score_y,
+        score_text,
     )
 
     # --------------------------------------------------------
-    # Issue date
+    # ISSUE DATE
     # --------------------------------------------------------
 
-    issue_date = certificate.IssueDate
+    issue_date = (
+        certificate.IssueDate
+    )
 
     if issue_date:
 
@@ -973,17 +1757,27 @@ def generate_certificate_pdf(
 
     pdf.setFont(
         "Helvetica",
-        11,
+        9.5,
     )
 
     pdf.drawCentredString(
         width / 2,
-        height - 10.6 * cm,
-        f"Issued: {issue_str}",
+        height - 10.45 * cm,
+        f"Issued on: {issue_str}",
     )
 
     # --------------------------------------------------------
-    # Certificate ID
+    # SEAL
+    # --------------------------------------------------------
+
+    _draw_seal(
+        pdf,
+        4.2 * cm,
+        4.65 * cm,
+    )
+
+    # --------------------------------------------------------
+    # CERTIFICATE ID
     # --------------------------------------------------------
 
     pdf.setFillColor(
@@ -992,80 +1786,318 @@ def generate_certificate_pdf(
 
     pdf.setFont(
         "Helvetica-Bold",
-        11,
+        8.5,
     )
 
     pdf.drawString(
-        2.2 * cm,
-        2.4 * cm,
-        "Certificate ID:",
+        2.1 * cm,
+        3.05 * cm,
+        "CERTIFICATE ID",
+    )
+
+    pdf.setFillColor(
+        blue
     )
 
     pdf.setFont(
-        "Helvetica",
-        11,
+        "Helvetica-Bold",
+        10,
     )
 
     pdf.drawString(
-        2.2 * cm,
-        1.9 * cm,
+        2.1 * cm,
+        2.58 * cm,
         certificate.CertificateNumber,
     )
 
     # --------------------------------------------------------
-    # QR code
+    # SIGNATURE
     # --------------------------------------------------------
 
-    if os.path.exists(qr_path):
+    signature_x = (
+        width / 2
+    )
 
-        qr_size = 2.6 * cm
+    signature_y = (
+        3.35 * cm
+    )
 
-        pdf.drawImage(
-            qr_path,
-            width - 2.2 * cm - qr_size,
-            1.6 * cm,
-            qr_size,
-            qr_size,
-            preserveAspectRatio=True,
-            mask="auto",
-        )
-
-        pdf.setFont(
-            "Helvetica",
-            8,
-        )
-
-        pdf.setFillColor(
-            gray
-        )
-
-        pdf.drawRightString(
-            width - 2.2 * cm,
-            1.35 * cm,
-            "Scan to verify",
-        )
-
-    # --------------------------------------------------------
-    # Footer
-    # --------------------------------------------------------
+    pdf.setFillColor(
+        navy
+    )
 
     pdf.setFont(
         "Helvetica-Oblique",
-        9,
+        20,
+    )
+
+    pdf.drawCentredString(
+        signature_x,
+        signature_y,
+        "Rahul Sharma",
+    )
+
+    _draw_gold_line(
+        pdf,
+        signature_x - 3.0 * cm,
+        signature_y - .25 * cm,
+        signature_x + 3.0 * cm,
+        .8,
+    )
+
+    pdf.setFillColor(
+        blue
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        8.5,
+    )
+
+    pdf.drawCentredString(
+        signature_x,
+        signature_y - .65 * cm,
+        "Rahul Sharma",
     )
 
     pdf.setFillColor(
         gray
     )
 
+    pdf.setFont(
+        "Helvetica",
+        7.5,
+    )
+
+    pdf.drawCentredString(
+        signature_x,
+        signature_y - 1.02 * cm,
+        "Founder & CEO, EduCertify",
+    )
+
+    # --------------------------------------------------------
+    # QR CODE
+    # --------------------------------------------------------
+
+    if os.path.exists(qr_path):
+
+        qr_size = (
+            2.35 * cm
+        )
+
+        qr_x = (
+            width - 3.15 * cm - qr_size
+        )
+
+        qr_y = (
+            2.28 * cm
+        )
+
+        # White QR background
+        pdf.setFillColor(
+            white
+        )
+
+        pdf.setStrokeColor(
+            navy
+        )
+
+        pdf.setLineWidth(
+            .8
+        )
+
+        pdf.roundRect(
+            qr_x - .12 * cm,
+            qr_y - .12 * cm,
+            qr_size + .24 * cm,
+            qr_size + .24 * cm,
+            .08 * cm,
+            fill=1,
+            stroke=1,
+        )
+
+        pdf.drawImage(
+            ImageReader(
+                qr_path
+            ),
+            qr_x,
+            qr_y,
+            qr_size,
+            qr_size,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
+
+        pdf.setFillColor(
+            gray
+        )
+
+        pdf.setFont(
+            "Helvetica",
+            6.8,
+        )
+
+        pdf.drawCentredString(
+            qr_x + qr_size / 2,
+            qr_y - .48 * cm,
+            "SCAN TO VERIFY",
+        )
+
+    # --------------------------------------------------------
+    # VERIFICATION TEXT
+    # --------------------------------------------------------
+
+    pdf.setFillColor(
+        gray
+    )
+
+    pdf.setFont(
+        "Helvetica-Oblique",
+        7.2,
+    )
+
     pdf.drawCentredString(
         width / 2,
-        1.7 * cm,
+        1.95 * cm,
         "Verify this certificate at the EduCertify Verification Portal",
     )
 
     # --------------------------------------------------------
-    # Save PDF
+    # FOOTER TRUST BAR
+    # --------------------------------------------------------
+
+    footer_x = 1.0 * cm
+    footer_y = 1.0 * cm
+    footer_w = width - 2.0 * cm
+    footer_h = 1.35 * cm
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.rect(
+        footer_x,
+        footer_y,
+        footer_w,
+        footer_h,
+        fill=1,
+        stroke=0,
+    )
+
+    # Gold top edge
+    pdf.setFillColor(
+        gold
+    )
+
+    pdf.rect(
+        footer_x,
+        footer_y + footer_h - .07 * cm,
+        footer_w,
+        .07 * cm,
+        fill=1,
+        stroke=0,
+    )
+
+    footer_items = [
+        (
+            "▣",
+            "Industry Relevant",
+            "Curriculum",
+        ),
+        (
+            "●",
+            "Expert",
+            "Instructors",
+        ),
+        (
+            "★",
+            "Verified",
+            "Certificate",
+        ),
+        (
+            "◎",
+            "Lifetime",
+            "Verification",
+        ),
+    ]
+
+    item_width = (
+        footer_w / 4
+    )
+
+    for index, item in enumerate(
+        footer_items
+    ):
+
+        item_x = (
+            footer_x
+            + index * item_width
+        )
+
+        if index > 0:
+
+            pdf.setStrokeColor(
+                HexColor(
+                    "#355477"
+                )
+            )
+
+            pdf.setLineWidth(
+                .5
+            )
+
+            pdf.line(
+                item_x,
+                footer_y + .12 * cm,
+                item_x,
+                footer_y + footer_h - .12 * cm,
+            )
+
+        icon, line1, line2 = item
+
+        pdf.setFillColor(
+            gold_light
+        )
+
+        pdf.setFont(
+            "Helvetica-Bold",
+            13,
+        )
+
+        pdf.drawString(
+            item_x + .55 * cm,
+            footer_y + .62 * cm,
+            icon,
+        )
+
+        pdf.setFillColor(
+            white
+        )
+
+        pdf.setFont(
+            "Helvetica-Bold",
+            6.5,
+        )
+
+        pdf.drawString(
+            item_x + 1.05 * cm,
+            footer_y + .76 * cm,
+            line1,
+        )
+
+        pdf.setFont(
+            "Helvetica",
+            6,
+        )
+
+        pdf.drawString(
+            item_x + 1.05 * cm,
+            footer_y + .43 * cm,
+            line2,
+        )
+
+    # --------------------------------------------------------
+    # FINALIZE
     # --------------------------------------------------------
 
     pdf.showPage()
@@ -1123,8 +2155,11 @@ def revoke_certificate(
     Revoke a certificate.
 
     Args:
-        certificate_id: Certificate database ID.
-        reason: Optional revocation reason.
+        certificate_id:
+            Certificate database ID.
+
+        reason:
+            Optional revocation reason.
 
     Returns:
         Updated Certificate.
@@ -1149,9 +2184,7 @@ def revoke_certificate(
 
     certificate.Status = "Revoked"
 
-    # Store reason only if your model has a corresponding
-    # field. This keeps the service compatible with the
-    # current model.
+    # Store reason only if supported
     if (
         reason
         and hasattr(
