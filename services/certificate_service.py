@@ -2106,6 +2106,80 @@ def generate_certificate_pdf(
 
 
 # ============================================================
+# CERTIFICATE PDF PATH HELPER
+# ============================================================
+
+def get_certificate_pdf_path(certificate, app_config):
+    """
+    Safely resolve the physical PDF path for a certificate.
+
+    Returns:
+        str | None: Absolute PDF path if valid, otherwise None.
+
+    This helper intentionally contains no Flask request/session handling.
+    """
+
+    if certificate is None:
+        return None
+
+    pdf_filename = getattr(certificate, "PDFPath", None)
+
+    if not pdf_filename:
+        return None
+
+    certificate_folder = (
+        app_config.get("CERTIFICATE_UPLOAD_FOLDER")
+        if app_config
+        else None
+    )
+
+    if not certificate_folder:
+        return None
+
+    certificate_folder = os.path.abspath(
+        certificate_folder
+    )
+
+    # PDFPath should contain only a filename.  Strip any directory
+    # components so database values cannot escape the certificate folder.
+    filename = (
+        str(pdf_filename)
+        .replace("\\", "/")
+        .split("/")[-1]
+        .strip()
+    )
+
+    if not filename:
+        return None
+
+    if not filename.lower().endswith(".pdf"):
+        return None
+
+    pdf_path = os.path.abspath(
+        os.path.join(
+            certificate_folder,
+            filename,
+        )
+    )
+
+    try:
+        if os.path.commonpath(
+            [
+                certificate_folder,
+                pdf_path,
+            ]
+        ) != certificate_folder:
+            return None
+    except ValueError:
+        return None
+
+    if not os.path.isfile(pdf_path):
+        return None
+
+    return pdf_path
+
+
+# ============================================================
 # VERIFY CERTIFICATE
 # ============================================================
 
@@ -2210,3 +2284,4 @@ def revoke_certificate(
         ) from exc
 
     return certificate
+
