@@ -2258,3 +2258,161 @@ a { text-decoration: none; color: inherit; }
     }
 
 }
+
+.site-header {
+    width: 100%;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.site-header .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    text-decoration: none;
+}
+
+.brand-logo {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-name {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #0f2747;
+    line-height: 1.1;
+}
+
+.brand-tagline {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #2563eb;
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.main-nav a {
+    color: #243447;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.main-nav a:hover {
+    color: #2563eb;
+}
+
+@media (max-width: 768px) {
+
+    .site-header .container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .brand-logo {
+        width: 50px;
+        height: 50px;
+    }
+
+    .brand-name {
+        font-size: 1.4rem;
+    }
+
+    .main-nav {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+}
+
+/* =========================================================
+   EDUCERTIFY BRAND LOGO
+========================================================= */
+
+.ec-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.ec-brand-logo {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    flex-shrink: 0;
+}
+
+.ec-brand-text {
+    display: flex;
+    align-items: center;
+    font-family: "Poppins", sans-serif;
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.ec-brand-text span {
+    color: #2563eb;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .ec-brand-logo {
+        width: 44px;
+        height: 44px;
+    }
+
+    .ec-brand-text {
+        font-size: 1.3rem;
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .ec-brand-logo {
+        width: 40px;
+        height: 40px;
+    }
+
+    .ec-brand-text {
+        font-size: 1.15rem;
+    }
+
+}
