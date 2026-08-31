@@ -13,6 +13,13 @@ Every response follows the structure:
 
 API Prefix:
     /api
+
+Main responsibilities:
+    - Course APIs
+    - Lesson progress API
+    - Quiz start API
+    - Quiz submission API
+    - Certificate verification API
 """
 
 from flask import (
@@ -280,6 +287,29 @@ def api_start_quiz(quiz_id):
     Start a quiz attempt.
 
     POST /api/quizzes/<quiz_id>/start
+
+    Returns:
+
+    {
+        "success": true,
+        "message": "Quiz started successfully.",
+        "attempt_id": 1,
+        "time_limit": 30,
+        "questions": [
+            {
+                "QuestionID": 1,
+                "QuestionText": "...",
+                "OptionA": "...",
+                "OptionB": "...",
+                "OptionC": "...",
+                "OptionD": "...",
+                "Marks": 1
+            }
+        ]
+    }
+
+    IMPORTANT:
+    CorrectOption is NEVER sent to the browser.
     """
 
     # --------------------------------------------------------
@@ -305,7 +335,7 @@ def api_start_quiz(quiz_id):
     try:
 
         # ----------------------------------------------------
-        # Start attempt
+        # Validate / start quiz attempt
         # ----------------------------------------------------
 
         attempt = start_attempt(
@@ -314,14 +344,161 @@ def api_start_quiz(quiz_id):
         )
 
         # ----------------------------------------------------
-        # Load quiz questions
+        # Load quiz and questions
         # ----------------------------------------------------
 
         quiz, questions = get_quiz_for_taking(
             quiz_id
         )
 
+        # ----------------------------------------------------
+        # Verify quiz exists
+        # ----------------------------------------------------
+
+        if quiz is None:
+
+            db.session.rollback()
+
+            return (
+                jsonify(
+                    json_response(
+                        False,
+                        "Quiz not found.",
+                    )
+                ),
+                404,
+            )
+
+        # ----------------------------------------------------
+        # Convert SQLAlchemy questions to JSON-safe data
+        # ----------------------------------------------------
+        #
+        # DO NOT return SQLAlchemy Question objects directly.
+        #
+        # The Question model provides to_public_dict(),
+        # which exposes:
+        #
+        #   QuestionID
+        #   QuestionText
+        #   OptionA
+        #   OptionB
+        #   OptionC
+        #   OptionD
+        #   Marks
+        #
+        # and intentionally does NOT expose CorrectOption.
+        #
+        # ----------------------------------------------------
+
+        questions_data = []
+
+        for question in questions:
+
+            if hasattr(
+                question,
+                "to_public_dict",
+            ):
+
+                question_data = (
+                    question.to_public_dict()
+                )
+
+                questions_data.append(
+                    question_data
+                )
+
+            elif isinstance(
+                question,
+                dict,
+            ):
+
+                # ------------------------------------------------
+                # If the service already returned dictionaries,
+                # normalize them without exposing CorrectOption.
+                # ------------------------------------------------
+
+                questions_data.append(
+                    {
+                        "QuestionID": (
+                            question.get(
+                                "QuestionID"
+                            )
+                            or question.get(
+                                "question_id"
+                            )
+                            or question.get(
+                                "id"
+                            )
+                        ),
+
+                        "QuestionText": (
+                            question.get(
+                                "QuestionText"
+                            )
+                            or question.get(
+                                "question_text"
+                            )
+                            or question.get(
+                                "text"
+                            )
+                            or ""
+                        ),
+
+                        "OptionA": (
+                            question.get(
+                                "OptionA"
+                            )
+                            or question.get(
+                                "option_a"
+                            )
+                            or ""
+                        ),
+
+                        "OptionB": (
+                            question.get(
+                                "OptionB"
+                            )
+                            or question.get(
+                                "option_b"
+                            )
+                            or ""
+                        ),
+
+                        "OptionC": (
+                            question.get(
+                                "OptionC"
+                            )
+                            or question.get(
+                                "option_c"
+                            )
+                            or ""
+                        ),
+
+                        "OptionD": (
+                            question.get(
+                                "OptionD"
+                            )
+                            or question.get(
+                                "option_d"
+                            )
+                            or ""
+                        ),
+
+                        "Marks": (
+                            question.get(
+                                "Marks"
+                            )
+                            or question.get(
+                                "marks"
+                            )
+                            or 1
+                        ),
+                    }
+                )
+
     except QuizError as exc:
+
+        db.session.rollback()
 
         return (
             jsonify(
@@ -333,9 +510,15 @@ def api_start_quiz(quiz_id):
             400,
         )
 
-    except Exception:
+    except Exception as exc:
 
         db.session.rollback()
+
+        current_app.logger.exception(
+            "Unable to start quiz %s: %s",
+            quiz_id,
+            exc,
+        )
 
         return (
             jsonify(
@@ -348,7 +531,23 @@ def api_start_quiz(quiz_id):
         )
 
     # --------------------------------------------------------
-    # Response
+    # Make sure questions exist
+    # --------------------------------------------------------
+
+    if not questions_data:
+
+        return (
+            jsonify(
+                json_response(
+                    False,
+                    "This quiz does not contain any questions.",
+                )
+            ),
+            400,
+        )
+
+    # --------------------------------------------------------
+    # Final response
     # --------------------------------------------------------
 
     return jsonify(
@@ -357,7 +556,7 @@ def api_start_quiz(quiz_id):
             "Quiz started successfully.",
             attempt_id=attempt.AttemptID,
             time_limit=quiz.TimeLimit,
-            questions=questions,
+            questions=questions_data,
         )
     )
 
@@ -376,23 +575,30 @@ def api_submit_quiz(quiz_id):
     """
     Submit a quiz attempt.
 
+    POST /api/quizzes/<quiz_id>/submit
+
     Expected JSON:
 
     {
         "attempt_id": 1,
         "answers": {
             "1": "A",
-            "2": "B"
+            "2": "B",
+            "3": "C"
         }
     }
 
-    POST /api/quizzes/<quiz_id>/submit
+    The server performs the actual scoring.
 
-    After a successful quiz submission, the API checks whether
-    the student has now satisfied all certificate requirements.
+    After a successful submission:
 
-    Certificate eligibility itself is handled by the certificate
-    service.
+        Quiz Score
+             ↓
+        Pass / Fail
+             ↓
+        Certificate Eligibility
+             ↓
+        Certificate Generation
     """
 
     # --------------------------------------------------------
@@ -403,9 +609,17 @@ def api_submit_quiz(quiz_id):
         silent=True
     ) or {}
 
+    # --------------------------------------------------------
+    # Attempt ID
+    # --------------------------------------------------------
+
     attempt_id = payload.get(
         "attempt_id"
     )
+
+    # --------------------------------------------------------
+    # Answers
+    # --------------------------------------------------------
 
     answers = payload.get(
         "answers",
@@ -429,7 +643,7 @@ def api_submit_quiz(quiz_id):
         )
 
     # --------------------------------------------------------
-    # Validate answers
+    # Validate answers object
     # --------------------------------------------------------
 
     if not isinstance(
@@ -446,6 +660,39 @@ def api_submit_quiz(quiz_id):
             ),
             400,
         )
+
+    # --------------------------------------------------------
+    # Normalize answer values
+    # --------------------------------------------------------
+    #
+    # Only A/B/C/D are accepted.
+    #
+    # This prevents invalid values from reaching
+    # the scoring service.
+    #
+    # --------------------------------------------------------
+
+    normalized_answers = {}
+
+    for question_id, answer in answers.items():
+
+        if answer is None:
+            continue
+
+        answer_value = str(
+            answer
+        ).strip().upper()
+
+        if answer_value in {
+            "A",
+            "B",
+            "C",
+            "D",
+        }:
+
+            normalized_answers[
+                str(question_id)
+            ] = answer_value
 
     # --------------------------------------------------------
     # Current student
@@ -476,15 +723,17 @@ def api_submit_quiz(quiz_id):
         attempt = submit_attempt(
             user_id,
             attempt_id,
-            answers,
+            normalized_answers,
         )
 
         # ----------------------------------------------------
-        # Make sure the submitted attempt belongs to the
-        # requested quiz.
+        # Security check:
+        # submitted attempt must belong to this quiz.
         # ----------------------------------------------------
 
         if attempt.QuizID != quiz_id:
+
+            db.session.rollback()
 
             return (
                 jsonify(
@@ -526,16 +775,18 @@ def api_submit_quiz(quiz_id):
                     )
 
                 except CertificateError:
+
                     """
-                    This does not necessarily mean that something
-                    is broken.
+                    Passing one quiz does not necessarily mean
+                    the student has completed every certificate
+                    requirement.
 
-                    The student may have passed this quiz but
-                    still have:
+                    Certificate generation may still require:
 
-                    - incomplete lessons
-                    - another failed module quiz
-                    - an unpassed final assessment
+                    - All lessons completed
+                    - Required module quizzes passed
+                    - Final assessment passed
+                    - Other course requirements
 
                     Therefore certificate generation is simply
                     skipped until all requirements are satisfied.
@@ -548,12 +799,21 @@ def api_submit_quiz(quiz_id):
         # ----------------------------------------------------
 
         response_data = {
-            "score": attempt.Score,
-            "percentage": attempt.Percentage,
-            "passed": attempt.Passed,
+
+            "score":
+                attempt.Score,
+
+            "percentage":
+                attempt.Percentage,
+
+            "passed":
+                attempt.Passed,
+
             "certificate": {
-                "generated": False,
-            },
+
+                "generated":
+                    False
+            }
         }
 
         # ----------------------------------------------------
@@ -562,14 +822,18 @@ def api_submit_quiz(quiz_id):
 
         if certificate is not None:
 
-            response_data["certificate"] = {
-                "generated": True,
-                "certificate_id": (
-                    certificate.CertificateID
-                ),
-                "certificate_number": (
-                    certificate.CertificateNumber
-                ),
+            response_data[
+                "certificate"
+            ] = {
+
+                "generated":
+                    True,
+
+                "certificate_id":
+                    certificate.CertificateID,
+
+                "certificate_number":
+                    certificate.CertificateNumber,
             }
 
         # ----------------------------------------------------
@@ -586,6 +850,8 @@ def api_submit_quiz(quiz_id):
 
     except QuizError as exc:
 
+        db.session.rollback()
+
         return (
             jsonify(
                 json_response(
@@ -596,9 +862,14 @@ def api_submit_quiz(quiz_id):
             400,
         )
 
-    except Exception:
+    except Exception as exc:
 
         db.session.rollback()
+
+        current_app.logger.exception(
+            "Unable to submit quiz %s: %s",
+            quiz_id,
+        )
 
         return (
             jsonify(
@@ -624,7 +895,14 @@ def api_verify_certificate(certificate_id):
     Verify a certificate.
 
     GET /api/certificates/verify/<certificate_id>
+
+    Public endpoint.
+    No login required.
     """
+
+    # --------------------------------------------------------
+    # Verify certificate
+    # --------------------------------------------------------
 
     try:
 
@@ -632,9 +910,15 @@ def api_verify_certificate(certificate_id):
             certificate_id
         )
 
-    except Exception:
+    except Exception as exc:
 
         db.session.rollback()
+
+        current_app.logger.exception(
+            "Unable to verify certificate %s: %s",
+            certificate_id,
+            exc,
+        )
 
         return (
             jsonify(
@@ -668,13 +952,18 @@ def api_verify_certificate(certificate_id):
     # Issue date
     # --------------------------------------------------------
 
-    issue_date = certificate.IssueDate
+    issue_date = (
+        certificate.IssueDate
+    )
 
     formatted_issue_date = (
+
         issue_date.strftime(
             "%d %B %Y"
         )
+
         if issue_date
+
         else None
     )
 
@@ -683,8 +972,11 @@ def api_verify_certificate(certificate_id):
     # --------------------------------------------------------
 
     student_name = (
+
         certificate.student.FullName
+
         if certificate.student
+
         else "Unknown Student"
     )
 
@@ -693,31 +985,47 @@ def api_verify_certificate(certificate_id):
     # --------------------------------------------------------
 
     course_title = (
+
         certificate.course.Title
+
         if certificate.course
+
         else "Unknown Course"
     )
 
     # --------------------------------------------------------
-    # Response
+    # Return certificate information
     # --------------------------------------------------------
 
     return jsonify(
         json_response(
             True,
             "Certificate found.",
+
             valid=(
-                certificate.Status == "Valid"
+                certificate.Status ==
+                "Valid"
             ),
+
             certificate={
-                "CertificateNumber": (
-                    certificate.CertificateNumber
-                ),
-                "StudentName": student_name,
-                "CourseTitle": course_title,
-                "FinalScore": certificate.FinalScore,
-                "IssueDate": formatted_issue_date,
-                "Status": certificate.Status,
+
+                "CertificateNumber":
+                    certificate.CertificateNumber,
+
+                "StudentName":
+                    student_name,
+
+                "CourseTitle":
+                    course_title,
+
+                "FinalScore":
+                    certificate.FinalScore,
+
+                "IssueDate":
+                    formatted_issue_date,
+
+                "Status":
+                    certificate.Status,
             },
         )
     )
