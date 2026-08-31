@@ -1,82 +1,560 @@
 {% extends "base.html" %}
+
 {% block title %}Home{% endblock %}
 
+{% block body_class %}ec-home-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public-pages.css') }}">
+{% endblock %}
+
 {% block content %}
-<section style="background: linear-gradient(135deg, var(--ec-navy) 0%, var(--ec-navy-light) 100%); color: #fff; padding: 90px 20px;">
-  <div class="container ec-slide-up" style="max-width: 900px; text-align: center;">
-    <h1 style="color: #fff; font-size: 2.6rem; margin-bottom: 18px;">Learn. Get Certified. Get Ahead.</h1>
-    <p style="color: #cbd5e1; font-size: 1.1rem; max-width: 640px; margin: 0 auto 32px;">
-      Join EduCertify to build in-demand skills through hands-on courses and earn
-      verifiable certificates that employers can trust.
-    </p>
-    <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
-      <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-primary">
-        <i class="fa-solid fa-magnifying-glass"></i> Explore Courses
-      </a>
-      <a href="{{ url_for('auth.register') }}" class="ec-btn ec-btn-outline" style="border-color: rgba(255,255,255,0.3); color: #fff;">
-        Get Started Free
-      </a>
-    </div>
-  </div>
-</section>
 
-<section class="container" style="max-width: 1100px; padding: 50px 20px;">
-  <div class="row text-center g-4">
-    <div class="col-6 col-md-3">
-      <h2 style="color: var(--ec-blue); font-size: 2rem;">{{ stats.courses }}+</h2>
-      <p style="color: var(--ec-gray);">Published Courses</p>
-    </div>
-    <div class="col-6 col-md-3">
-      <h2 style="color: var(--ec-blue); font-size: 2rem;">{{ stats.categories }}+</h2>
-      <p style="color: var(--ec-gray);">Categories</p>
-    </div>
-    <div class="col-6 col-md-3">
-      <h2 style="color: var(--ec-blue); font-size: 2rem;">100%</h2>
-      <p style="color: var(--ec-gray);">Verifiable Certificates</p>
-    </div>
-    <div class="col-6 col-md-3">
-      <h2 style="color: var(--ec-blue); font-size: 2rem;">24/7</h2>
-      <p style="color: var(--ec-gray);">Self-Paced Access</p>
-    </div>
-  </div>
-</section>
+<!-- =========================================================
+     HERO
+========================================================= -->
+<section class="ec-home-hero">
 
-<section class="container" style="max-width: 1200px; padding: 30px 20px 70px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-    <h2 style="margin: 0;">Featured Courses</h2>
-    <a href="{{ url_for('courses.index') }}" class="ec-btn ec-btn-outline ec-btn-sm">View All</a>
-  </div>
+    <div class="ec-home-hero-shape ec-shape-one"></div>
+    <div class="ec-home-hero-shape ec-shape-two"></div>
 
-  {% if featured_courses %}
-  <div class="row g-4">
-    {% for course in featured_courses %}
-    <div class="col-md-4">
-      <a href="{{ url_for('courses.details', slug=course.Slug) }}" class="ec-card ec-card-hover d-block h-100" style="overflow: hidden;">
-        <div style="height: 160px; background: var(--ec-blue-light); display: flex; align-items: center; justify-content: center;">
-          {% if course.ThumbnailURL %}
-            <img src="{{ course.ThumbnailURL }}" alt="{{ course.Title }}" style="width: 100%; height: 100%; object-fit: cover;">
-          {% else %}
-            <i class="fa-solid fa-book" style="font-size: 2.5rem; color: var(--ec-blue);"></i>
-          {% endif %}
+    <div class="container">
+
+        <div class="row align-items-center g-5">
+
+            <!-- HERO CONTENT -->
+            <div class="col-lg-7">
+
+                <div class="ec-hero-label">
+                    <span class="ec-pulse-dot"></span>
+                    Learn • Practice • Prove Your Skills
+                </div>
+
+                <h1 class="ec-hero-title">
+                    Learn skills that
+                    <span>move you forward.</span>
+                </h1>
+
+                <p class="ec-hero-description">
+                    EduCertify helps students learn practical skills through
+                    structured courses, real assessments and certificates
+                    they can confidently share.
+                </p>
+
+                <div class="ec-hero-actions">
+
+                    <a href="{{ url_for('courses.index') }}"
+                       class="ec-btn ec-btn-primary ec-btn-lg">
+
+                        <i class="fa-solid fa-compass"></i>
+                        Explore Courses
+
+                    </a>
+
+                    <a href="{{ url_for('auth.register') }}"
+                       class="ec-btn ec-btn-hero-secondary ec-btn-lg">
+
+                        Get Started
+                        <i class="fa-solid fa-arrow-right"></i>
+
+                    </a>
+
+                </div>
+
+                <div class="ec-hero-note">
+
+                    <div class="ec-hero-note-item">
+                        <i class="fa-solid fa-circle-check"></i>
+                        Self-paced learning
+                    </div>
+
+                    <div class="ec-hero-note-item">
+                        <i class="fa-solid fa-circle-check"></i>
+                        Skill-based assessments
+                    </div>
+
+                    <div class="ec-hero-note-item">
+                        <i class="fa-solid fa-circle-check"></i>
+                        Verifiable certificates
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- HERO VISUAL -->
+            <div class="col-lg-5">
+
+                <div class="ec-learning-preview">
+
+                    <div class="ec-preview-top">
+
+                        <div>
+                            <span class="ec-preview-overline">
+                                YOUR LEARNING
+                            </span>
+
+                            <h3>Build your next skill</h3>
+                        </div>
+
+                        <div class="ec-preview-icon">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+
+                    </div>
+
+
+                    <div class="ec-preview-progress">
+
+                        <div class="ec-preview-progress-header">
+                            <span>Course progress</span>
+                            <strong>72%</strong>
+                        </div>
+
+                        <div class="ec-progress-track">
+                            <span style="width: 72%;"></span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="ec-preview-course">
+
+                        <div class="ec-preview-course-icon">
+                            <i class="fa-solid fa-code"></i>
+                        </div>
+
+                        <div class="ec-preview-course-info">
+
+                            <strong>Web Development</strong>
+
+                            <span>
+                                HTML • CSS • JavaScript
+                            </span>
+
+                        </div>
+
+                        <i class="fa-solid fa-chevron-right"></i>
+
+                    </div>
+
+
+                    <div class="ec-preview-stats">
+
+                        <div>
+                            <strong>12</strong>
+                            <span>Lessons</span>
+                        </div>
+
+                        <div>
+                            <strong>4</strong>
+                            <span>Quizzes</span>
+                        </div>
+
+                        <div>
+                            <strong>1</strong>
+                            <span>Certificate</span>
+                        </div>
+
+                    </div>
+
+                    <div class="ec-preview-footer">
+
+                        <span>
+                            <i class="fa-solid fa-circle-check"></i>
+                            Keep going — you're doing great.
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
-        <div style="padding: 18px;">
-          <span class="ec-badge ec-badge-info">{{ course.Level }}</span>
-          <h5 style="margin-top: 10px;">{{ course.Title }}</h5>
-          <p style="color: var(--ec-gray); font-size: 0.9rem;">{{ course.ShortDescription or "" }}</p>
-          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--ec-gray); margin-top: 12px;">
-            <span><i class="fa-solid fa-user"></i> {{ course.instructor.FullName }}</span>
-            <span><i class="fa-solid fa-clock"></i> {{ course.Duration or "Self-paced" }}</span>
-          </div>
-        </div>
-      </a>
+
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="ec-empty-state">
-    <i class="fa-solid fa-book-open"></i>
-    <p>No published courses yet. Check back soon!</p>
-  </div>
-  {% endif %}
+
 </section>
+
+
+<!-- =========================================================
+     QUICK STATS
+========================================================= -->
+<section class="ec-home-stats">
+
+    <div class="container">
+
+        <div class="ec-stats-grid">
+
+            <div class="ec-home-stat">
+
+                <div class="ec-home-stat-icon">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+
+                <div>
+                    <strong>{{ stats.courses }}+</strong>
+                    <span>Published Courses</span>
+                </div>
+
+            </div>
+
+
+            <div class="ec-home-stat">
+
+                <div class="ec-home-stat-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+
+                <div>
+                    <strong>{{ stats.categories }}+</strong>
+                    <span>Learning Categories</span>
+                </div>
+
+            </div>
+
+
+            <div class="ec-home-stat">
+
+                <div class="ec-home-stat-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+
+                <div>
+                    <strong>100%</strong>
+                    <span>Verifiable Certificates</span>
+                </div>
+
+            </div>
+
+
+            <div class="ec-home-stat">
+
+                <div class="ec-home-stat-icon">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+
+                <div>
+                    <strong>24/7</strong>
+                    <span>Learning Access</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =========================================================
+     WHY EDUCERTIFY
+========================================================= -->
+<section class="ec-home-intro">
+
+    <div class="container">
+
+        <div class="ec-section-heading">
+
+            <span class="ec-section-kicker">
+                WHY EDUCERTIFY
+            </span>
+
+            <h2>
+                A simple way to learn,
+                <span>prove and grow.</span>
+            </h2>
+
+            <p>
+                We designed EduCertify around the complete learning journey —
+                from your first lesson to the certificate you can verify later.
+            </p>
+
+        </div>
+
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+
+                <article class="ec-feature-card">
+
+                    <div class="ec-feature-number">01</div>
+
+                    <div class="ec-feature-icon">
+                        <i class="fa-solid fa-route"></i>
+                    </div>
+
+                    <h3>Learn with structure</h3>
+
+                    <p>
+                        Follow organized courses divided into modules and
+                        lessons so you always know what to learn next.
+                    </p>
+
+                </article>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <article class="ec-feature-card">
+
+                    <div class="ec-feature-number">02</div>
+
+                    <div class="ec-feature-icon">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+
+                    <h3>Test your knowledge</h3>
+
+                    <p>
+                        Complete quizzes and assessments that turn learning
+                        into measurable progress.
+                    </p>
+
+                </article>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <article class="ec-feature-card">
+
+                    <div class="ec-feature-number">03</div>
+
+                    <div class="ec-feature-icon">
+                        <i class="fa-solid fa-certificate"></i>
+                    </div>
+
+                    <h3>Earn proof of learning</h3>
+
+                    <p>
+                        Complete the required work and earn a certificate
+                        with a unique verification identity.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =========================================================
+     FEATURED COURSES
+========================================================= -->
+<section class="ec-featured-section">
+
+    <div class="container">
+
+        <div class="ec-section-header">
+
+            <div>
+
+                <span class="ec-section-kicker">
+                    START LEARNING
+                </span>
+
+                <h2>Featured courses</h2>
+
+                <p>
+                    Explore courses created to help you develop practical,
+                    useful skills.
+                </p>
+
+            </div>
+
+            <a href="{{ url_for('courses.index') }}"
+               class="ec-text-link">
+
+                View all courses
+                <i class="fa-solid fa-arrow-right"></i>
+
+            </a>
+
+        </div>
+
+
+        {% if featured_courses %}
+
+        <div class="row g-4">
+
+            {% for course in featured_courses %}
+
+            <div class="col-md-6 col-lg-4">
+
+                <a href="{{ url_for('courses.details', slug=course.Slug) }}"
+                   class="ec-course-card">
+
+                    <div class="ec-course-image">
+
+                        {% if course.ThumbnailURL %}
+
+                        <img src="{{ course.ThumbnailURL }}"
+                             alt="{{ course.Title }}">
+
+                        {% else %}
+
+                        <div class="ec-course-placeholder">
+
+                            <i class="fa-solid fa-book-open"></i>
+
+                        </div>
+
+                        {% endif %}
+
+                        <span class="ec-course-level">
+                            {{ course.Level }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="ec-course-body">
+
+                        <div class="ec-course-category">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            EduCertify Course
+                        </div>
+
+                        <h3>
+                            {{ course.Title }}
+                        </h3>
+
+                        <p>
+                            {{ course.ShortDescription or
+                               "Build practical knowledge with structured learning." }}
+                        </p>
+
+
+                        <div class="ec-course-meta">
+
+                            <span>
+                                <i class="fa-regular fa-user"></i>
+                                {{ course.instructor.FullName }}
+                            </span>
+
+                            <span>
+                                <i class="fa-regular fa-clock"></i>
+                                {{ course.Duration or "Self-paced" }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="ec-course-footer">
+
+                            <span class="ec-course-action">
+                                View course
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </span>
+
+                            {% if course.Price and course.Price > 0 %}
+
+                            <strong>
+                                ₹{{ "%.0f"|format(course.Price) }}
+                            </strong>
+
+                            {% else %}
+
+                            <strong class="ec-free-label">
+                                Free
+                            </strong>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <div class="ec-public-empty">
+
+            <div class="ec-public-empty-icon">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+
+            <h3>Courses are coming soon</h3>
+
+            <p>
+                Our instructors are preparing new learning experiences.
+                Please check back shortly.
+            </p>
+
+            <a href="{{ url_for('auth.register') }}"
+               class="ec-btn ec-btn-primary">
+
+                Join EduCertify
+
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+
+<!-- =========================================================
+     FINAL HOME MESSAGE
+========================================================= -->
+<section class="ec-home-message">
+
+    <div class="container">
+
+        <div class="ec-home-message-inner">
+
+            <div>
+
+                <span class="ec-section-kicker">
+                    BUILT FOR LEARNERS
+                </span>
+
+                <h2>
+                    Your next achievement
+                    can start with one course.
+                </h2>
+
+                <p>
+                    Learn something useful, finish what you start,
+                    and have something meaningful to show for it.
+                </p>
+
+            </div>
+
+            <a href="{{ url_for('courses.index') }}"
+               class="ec-btn ec-btn-primary ec-btn-lg">
+
+                Browse Courses
+                <i class="fa-solid fa-arrow-right"></i>
+
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
 {% endblock %}

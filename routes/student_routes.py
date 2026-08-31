@@ -1,38 +1,188 @@
 """
-Student-facing routes: dashboard, my courses, learning interface,
-quiz taking, certificates, profile.
+EduCertify — Student Routes
+
+Student-facing functionality:
+
+- Dashboard
+- Enrolled courses
+- Course enrollment
+- Learning interface
+- Lesson progress
+- Quizzes
+- Certificates
+- Certificate downloads
+- Student profile
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app, send_from_directory
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+)
 
 from database.database import db
-from database.models import Course, Enrollment, Lesson, Module, Quiz, Certificate, User, Notification
-from utils.decorators import login_required, role_required
-from services.enrollment_service import enroll_student, get_enrollment, EnrollmentError
-from services.progress_service import mark_lesson_complete, get_completed_lesson_ids, get_module_progress
-from services.certificate_service import check_eligibility, issue_certificate, CertificateError
-from services.quiz_service import get_remaining_attempts, get_best_attempt
+from database.models import (
+    Certificate,
+    Course,
+    Enrollment,
+    Lesson,
+    Module,
+    Notification,
+    Quiz,
+    QuizAttempt,
+    User,
+)
 
-student_bp = Blueprint("student", __name__, url_prefix="/student")
+from utils.decorators import (
+    login_required,
+    role_required,
+)
 
+from services.enrollment_service import (
+    enroll_student,
+    get_enrollment,
+    EnrollmentError,
+)
+
+from services.progress_service import (
+    mark_lesson_complete,
+    get_completed_lesson_ids,
+    get_module_progress,
+)
+
+from services.certificate_service import (
+    check_eligibility,
+    issue_certificate,
+    CertificateError,
+)
+
+from services.quiz_service import (
+    get_remaining_attempts,
+    get_best_attempt,
+)
+
+
+# ============================================================
+# BLUEPRINT
+# ============================================================
+
+student_bp = Blueprint(
+    "student",
+    __name__,
+    url_prefix="/student",
+)
+
+
+# ============================================================
+# STUDENT DASHBOARD
+# ============================================================
 
 @student_bp.route("/dashboard")
 @login_required
 @role_required("Student")
 def dashboard():
-    student_id = session["user_id"]
-    enrollments = Enrollment.query.filter_by(StudentID=student_id).all()
-    certificates = Certificate.query.filter_by(StudentID=student_id).all()
+    """
+    Display student dashboard statistics.
+    """
 
-    completed = [e for e in enrollments if e.Status == "Completed"]
-    active = [e for e in enrollments if e.Status == "Active"]
+    student_id = session.get("user_id")
 
-    from database.models import QuizAttempt
-    attempts = QuizAttempt.query.filter_by(StudentID=student_id).filter(QuizAttempt.CompletedAt.isnot(None)).all()
-    avg_quiz_score = round(sum(a.Percentage for a in attempts) / len(attempts), 1) if attempts else 0
+    if not student_id:
+        return redirect(
+            url_for("auth.login")
+        )
+
+    # --------------------------------------------------------
+    # Enrollments
+    # --------------------------------------------------------
+
+    enrollments = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .order_by(
+            Enrollment.EnrollmentDate.desc()
+        )
+        .all()
+    )
+
+    completed = [
+        enrollment
+        for enrollment in enrollments
+        if enrollment.Status == "Completed"
+    ]
+
+    active = [
+        enrollment
+        for enrollment in enrollments
+        if enrollment.Status == "Active"
+    ]
+
+    # --------------------------------------------------------
+    # Certificates
+    # --------------------------------------------------------
+
+    certificates = (
+        Certificate.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .order_by(
+            Certificate.IssueDate.desc()
+        )
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # Completed quiz attempts
+    # --------------------------------------------------------
+
+    attempts = (
+        QuizAttempt.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .filter(
+            QuizAttempt.CompletedAt.isnot(None)
+        )
+        .all()
+    )
+
+    percentages = [
+        attempt.Percentage
+        for attempt in attempts
+        if attempt.Percentage is not None
+    ]
+
+    avg_quiz_score = (
+        round(
+            sum(percentages) / len(percentages),
+            1,
+        )
+        if percentages
+        else 0
+    )
+
+    # --------------------------------------------------------
+    # Notifications
+    # --------------------------------------------------------
 
     recent_notifications = (
-        Notification.query.filter_by(UserID=student_id).order_by(Notification.CreatedAt.desc()).limit(5).all()
+        Notification.query
+        .filter_by(
+            UserID=student_id
+        )
+        .order_by(
+            Notification.CreatedAt.desc()
+        )
+        .limit(5)
+        .all()
     )
 
     return render_template(
@@ -46,121 +196,500 @@ def dashboard():
     )
 
 
+# ============================================================
+# MY COURSES
+# ============================================================
+
 @student_bp.route("/courses")
 @login_required
 @role_required("Student")
 def courses():
-    student_id = session["user_id"]
-    status_filter = request.args.get("status", "all")
-    query = Enrollment.query.filter_by(StudentID=student_id)
-    if status_filter != "all":
-        query = query.filter_by(Status=status_filter.capitalize())
-    enrollments = query.order_by(Enrollment.EnrollmentDate.desc()).all()
-    return render_template("student/courses.html", enrollments=enrollments, status_filter=status_filter)
+    """
+    Display courses enrolled by the current student.
+    """
+
+    student_id = session.get("user_id")
+
+    status_filter = (
+        request.args.get(
+            "status",
+            "all",
+        )
+        .strip()
+        .lower()
+    )
+
+    query = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id
+        )
+    )
+
+    allowed_statuses = {
+        "active": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "pending": "Pending",
+    }
+
+    if status_filter in allowed_statuses:
+
+        query = query.filter_by(
+            Status=allowed_statuses[
+                status_filter
+            ]
+        )
+
+    elif status_filter != "all":
+
+        status_filter = "all"
+
+    enrollments = (
+        query
+        .order_by(
+            Enrollment.EnrollmentDate.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "student/courses.html",
+        enrollments=enrollments,
+        status_filter=status_filter,
+    )
 
 
-@student_bp.route("/courses/<int:course_id>/enroll", methods=["POST"])
+# ============================================================
+# COURSE ENROLLMENT
+# ============================================================
+
+@student_bp.route(
+    "/courses/<int:course_id>/enroll",
+    methods=["POST"],
+)
 @login_required
 @role_required("Student")
 def enroll(course_id):
+    """
+    Enroll the current student in a course.
+    """
+
+    student_id = session.get("user_id")
+
+    course = db.session.get(
+        Course,
+        course_id,
+    )
+
+    if course is None:
+        flash(
+            "Course not found.",
+            "error",
+        )
+
+        return redirect(
+            url_for("courses.index")
+        )
+
+    if course.Status != "Published":
+
+        flash(
+            "This course is not available for enrollment.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "courses.details",
+                slug=course.Slug,
+            )
+        )
+
     try:
-        enroll_student(session["user_id"], course_id)
-        flash("Enrollment successful! Start learning now.", "success")
-    except EnrollmentError as e:
-        flash(str(e), "error")
 
-    course = Course.query.get_or_404(course_id)
-    return redirect(url_for("courses.details", slug=course.Slug))
+        enroll_student(
+            student_id,
+            course_id,
+        )
+
+        flash(
+            "Enrollment successful! Start learning now.",
+            "success",
+        )
+
+    except EnrollmentError as exc:
+
+        flash(
+            str(exc),
+            "error",
+        )
+
+    return redirect(
+        url_for(
+            "courses.details",
+            slug=course.Slug,
+        )
+    )
 
 
-@student_bp.route("/learn/<int:course_id>")
-@student_bp.route("/learn/<int:course_id>/lesson/<int:lesson_id>")
+# ============================================================
+# LEARNING INTERFACE
+# ============================================================
+
+@student_bp.route(
+    "/learn/<int:course_id>",
+)
+@student_bp.route(
+    "/learn/<int:course_id>/lesson/<int:lesson_id>",
+)
 @login_required
 @role_required("Student")
-def learn(course_id, lesson_id=None):
-    student_id = session["user_id"]
-    course = Course.query.get_or_404(course_id)
-    enrollment = get_enrollment(student_id, course_id)
+def learn(
+    course_id,
+    lesson_id=None,
+):
+    """
+    Display the learning interface for an enrolled course.
+    """
 
-    if not enrollment:
-        flash("You need to enroll in this course first.", "warning")
-        return redirect(url_for("courses.details", slug=course.Slug))
+    student_id = session.get(
+        "user_id"
+    )
 
-    all_lessons = [lesson for module in course.modules for lesson in module.lessons]
+    course = db.session.get(
+        Course,
+        course_id,
+    )
+
+    if course is None:
+
+        flash(
+            "Course not found.",
+            "error",
+        )
+
+        return redirect(
+            url_for("student.courses")
+        )
+
+    # --------------------------------------------------------
+    # Verify enrollment
+    # --------------------------------------------------------
+
+    enrollment = get_enrollment(
+        student_id,
+        course_id,
+    )
+
+    if enrollment is None:
+
+        flash(
+            "You need to enroll in this course first.",
+            "warning",
+        )
+
+        return redirect(
+            url_for(
+                "courses.details",
+                slug=course.Slug,
+            )
+        )
+
+    # --------------------------------------------------------
+    # Collect lessons
+    # --------------------------------------------------------
+
+    all_lessons = []
+
+    for module in course.modules:
+
+        for lesson in module.lessons:
+            all_lessons.append(lesson)
+
     if not all_lessons:
-        flash("This course doesn't have any lessons yet.", "info")
-        return redirect(url_for("student.courses"))
+
+        flash(
+            "This course doesn't have any lessons yet.",
+            "info",
+        )
+
+        return redirect(
+            url_for("student.courses")
+        )
+
+    # --------------------------------------------------------
+    # Current lesson
+    # --------------------------------------------------------
 
     current_lesson = None
-    if lesson_id:
-        current_lesson = Lesson.query.get(lesson_id)
-    if not current_lesson:
+
+    if lesson_id is not None:
+
+        for lesson in all_lessons:
+
+            if lesson.LessonID == lesson_id:
+
+                current_lesson = lesson
+                break
+
+        # Student attempted to access a lesson that
+        # does not belong to this course.
+        if current_lesson is None:
+
+            flash(
+                "The requested lesson was not found in this course.",
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "student.learn",
+                    course_id=course_id,
+                )
+            )
+
+    if current_lesson is None:
+
         current_lesson = all_lessons[0]
 
-    lesson_ids = [l.LessonID for l in all_lessons]
-    completed_ids = get_completed_lesson_ids(student_id, lesson_ids)
+    # --------------------------------------------------------
+    # Completed lessons
+    # --------------------------------------------------------
 
-    # Determine previous/next lesson for navigation
-    current_index = all_lessons.index(current_lesson) if current_lesson in all_lessons else 0
-    prev_lesson = all_lessons[current_index - 1] if current_index > 0 else None
-    next_lesson = all_lessons[current_index + 1] if current_index < len(all_lessons) - 1 else None
+    lesson_ids = [
+        lesson.LessonID
+        for lesson in all_lessons
+    ]
 
-    module_progress = {m.ModuleID: get_module_progress(student_id, m) for m in course.modules}
+    completed_ids = get_completed_lesson_ids(
+        student_id,
+        lesson_ids,
+    )
+
+    # --------------------------------------------------------
+    # Previous / next lesson
+    # --------------------------------------------------------
+
+    current_index = all_lessons.index(
+        current_lesson
+    )
+
+    previous_lesson = (
+        all_lessons[current_index - 1]
+        if current_index > 0
+        else None
+    )
+
+    next_lesson = (
+        all_lessons[current_index + 1]
+        if current_index < len(all_lessons) - 1
+        else None
+    )
+
+    # --------------------------------------------------------
+    # Module progress
+    # --------------------------------------------------------
+
+    module_progress = {
+        module.ModuleID: get_module_progress(
+            student_id,
+            module,
+        )
+        for module in course.modules
+    }
 
     return render_template(
         "courses/learning.html",
         course=course,
         current_lesson=current_lesson,
         completed_ids=completed_ids,
-        prev_lesson=prev_lesson,
+        prev_lesson=previous_lesson,
         next_lesson=next_lesson,
         enrollment=enrollment,
         module_progress=module_progress,
     )
 
 
+# ============================================================
+# PROGRESS
+# ============================================================
+
 @student_bp.route("/progress")
 @login_required
 @role_required("Student")
 def progress():
-    student_id = session["user_id"]
-    enrollments = Enrollment.query.filter_by(StudentID=student_id).all()
-    return render_template("student/progress.html", enrollments=enrollments)
+    """
+    Display learning progress.
+    """
 
+    student_id = session.get(
+        "user_id"
+    )
+
+    enrollments = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .order_by(
+            Enrollment.EnrollmentDate.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "student/progress.html",
+        enrollments=enrollments,
+    )
+
+
+# ============================================================
+# QUIZZES
+# ============================================================
 
 @student_bp.route("/quizzes")
 @login_required
 @role_required("Student")
 def quizzes():
-    student_id = session["user_id"]
-    enrollments = Enrollment.query.filter_by(StudentID=student_id).all()
-    course_ids = [e.CourseID for e in enrollments]
+    """
+    Display quizzes belonging to courses
+    in which the student is enrolled.
+    """
 
-    quiz_list = Quiz.query.filter(Quiz.CourseID.in_(course_ids)).all() if course_ids else []
+    student_id = session.get(
+        "user_id"
+    )
+
+    enrollments = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .all()
+    )
+
+    course_ids = [
+        enrollment.CourseID
+        for enrollment in enrollments
+    ]
+
+    if not course_ids:
+
+        return render_template(
+            "student/quiz.html",
+            quiz_list=[],
+            quiz=None,
+        )
+
+    quiz_list = (
+        Quiz.query
+        .filter(
+            Quiz.CourseID.in_(course_ids)
+        )
+        .order_by(
+            Quiz.QuizID.desc()
+        )
+        .all()
+    )
 
     quiz_data = []
+
     for quiz in quiz_list:
-        best = get_best_attempt(student_id, quiz.QuizID)
-        remaining = get_remaining_attempts(student_id, quiz.QuizID)
-        quiz_data.append({"quiz": quiz, "best_attempt": best, "remaining": remaining})
 
-    return render_template("student/quiz.html", quiz_list=quiz_data, quiz=None)
+        best_attempt = get_best_attempt(
+            student_id,
+            quiz.QuizID,
+        )
+
+        remaining_attempts = (
+            get_remaining_attempts(
+                student_id,
+                quiz.QuizID,
+            )
+        )
+
+        quiz_data.append(
+            {
+                "quiz": quiz,
+                "best_attempt": best_attempt,
+                "remaining": remaining_attempts,
+            }
+        )
+
+    return render_template(
+        "student/quiz.html",
+        quiz_list=quiz_data,
+        quiz=None,
+    )
 
 
-@student_bp.route("/quiz/<int:quiz_id>")
+# ============================================================
+# QUIZ PAGE
+# ============================================================
+
+@student_bp.route(
+    "/quiz/<int:quiz_id>",
+)
 @login_required
 @role_required("Student")
 def quiz_page(quiz_id):
-    quiz = Quiz.query.get_or_404(quiz_id)
-    student_id = session["user_id"]
+    """
+    Display a quiz for the enrolled student.
+    """
 
-    enrollment = get_enrollment(student_id, quiz.CourseID)
-    if not enrollment:
-        flash("You need to be enrolled in this course to take the quiz.", "warning")
-        return redirect(url_for("courses.details", slug=quiz.course.Slug))
+    student_id = session.get(
+        "user_id"
+    )
 
-    remaining = get_remaining_attempts(student_id, quiz_id)
-    best_attempt = get_best_attempt(student_id, quiz_id)
+    quiz = db.session.get(
+        Quiz,
+        quiz_id,
+    )
+
+    if quiz is None:
+
+        flash(
+            "Quiz not found.",
+            "error",
+        )
+
+        return redirect(
+            url_for("student.quizzes")
+        )
+
+    # --------------------------------------------------------
+    # Verify enrollment
+    # --------------------------------------------------------
+
+    enrollment = get_enrollment(
+        student_id,
+        quiz.CourseID,
+    )
+
+    if enrollment is None:
+
+        flash(
+            "You need to be enrolled in this course to take the quiz.",
+            "warning",
+        )
+
+        return redirect(
+            url_for(
+                "courses.details",
+                slug=quiz.course.Slug,
+            )
+        )
+
+    remaining = get_remaining_attempts(
+        student_id,
+        quiz_id,
+    )
+
+    best_attempt = get_best_attempt(
+        student_id,
+        quiz_id,
+    )
 
     return render_template(
         "student/quiz.html",
@@ -170,69 +699,345 @@ def quiz_page(quiz_id):
     )
 
 
+# ============================================================
+# CERTIFICATES
+# ============================================================
+
 @student_bp.route("/certificates")
 @login_required
 @role_required("Student")
 def certificates():
-    student_id = session["user_id"]
-    certs = Certificate.query.filter_by(StudentID=student_id).order_by(Certificate.IssueDate.desc()).all()
+    """
+    Display issued certificates and courses
+    eligible for certificate generation.
+    """
 
-    # Also show courses that are eligible but not yet issued
+    student_id = session.get(
+        "user_id"
+    )
+
+    certs = (
+        Certificate.query
+        .filter_by(
+            StudentID=student_id
+        )
+        .order_by(
+            Certificate.IssueDate.desc()
+        )
+        .all()
+    )
+
+    completed_enrollments = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id,
+            Status="Completed",
+        )
+        .all()
+    )
+
+    issued_course_ids = {
+        certificate.CourseID
+        for certificate in certs
+    }
+
     eligible_courses = []
-    completed_enrollments = Enrollment.query.filter_by(StudentID=student_id, Status="Completed").all()
-    issued_course_ids = {c.CourseID for c in certs}
+
     for enrollment in completed_enrollments:
-        if enrollment.CourseID not in issued_course_ids:
-            try:
-                elig = check_eligibility(student_id, enrollment.CourseID)
-                if elig["eligible"]:
-                    eligible_courses.append(enrollment.course)
-            except CertificateError:
-                pass
 
-    return render_template("student/certificates.html", certificates=certs, eligible_courses=eligible_courses)
+        if enrollment.CourseID in issued_course_ids:
+            continue
+
+        try:
+
+            eligibility = check_eligibility(
+                student_id,
+                enrollment.CourseID,
+            )
+
+            if eligibility.get(
+                "eligible",
+                False,
+            ):
+
+                if enrollment.course:
+                    eligible_courses.append(
+                        enrollment.course
+                    )
+
+        except CertificateError:
+            continue
+
+    return render_template(
+        "student/certificates.html",
+        certificates=certs,
+        eligible_courses=eligible_courses,
+    )
 
 
-@student_bp.route("/certificates/<int:course_id>/generate", methods=["POST"])
+# ============================================================
+# GENERATE CERTIFICATE
+# ============================================================
+
+@student_bp.route(
+    "/certificates/<int:course_id>/generate",
+    methods=["POST"],
+)
 @login_required
 @role_required("Student")
 def generate_certificate(course_id):
-    student_id = session["user_id"]
+    """
+    Generate a certificate for a completed course.
+    """
+
+    student_id = session.get(
+        "user_id"
+    )
+
     try:
-        cert = issue_certificate(student_id, course_id, current_app.config)
-        flash(f"Certificate {cert.CertificateNumber} generated successfully!", "success")
-    except CertificateError as e:
-        flash(str(e), "error")
-    return redirect(url_for("student.certificates"))
+
+        certificate = issue_certificate(
+            student_id,
+            course_id,
+            current_app.config,
+        )
+
+        flash(
+            (
+                f"Certificate "
+                f"{certificate.CertificateNumber} "
+                f"generated successfully!"
+            ),
+            "success",
+        )
+
+    except CertificateError as exc:
+
+        flash(
+            str(exc),
+            "error",
+        )
+
+    except Exception:
+
+        db.session.rollback()
+
+        flash(
+            "Unable to generate certificate.",
+            "error",
+        )
+
+    return redirect(
+        url_for(
+            "student.certificates"
+        )
+    )
 
 
-@student_bp.route("/certificates/<int:certificate_id>/download")
+# ============================================================
+# DOWNLOAD CERTIFICATE
+# ============================================================
+
+@student_bp.route(
+    "/certificates/<int:certificate_id>/download",
+)
 @login_required
 @role_required("Student")
 def download_certificate(certificate_id):
-    cert = Certificate.query.get_or_404(certificate_id)
-    if cert.StudentID != session["user_id"]:
-        flash("You do not have access to this certificate.", "error")
-        return redirect(url_for("student.certificates"))
-    if not cert.PDFPath:
-        flash("Certificate PDF is not available.", "error")
-        return redirect(url_for("student.certificates"))
-    return send_from_directory(current_app.config["CERTIFICATE_UPLOAD_FOLDER"], cert.PDFPath, as_attachment=True)
+    """
+    Download a certificate PDF belonging to the
+    currently authenticated student.
+    """
+
+    student_id = session.get(
+        "user_id"
+    )
+
+    certificate = db.session.get(
+        Certificate,
+        certificate_id,
+    )
+
+    if certificate is None:
+
+        flash(
+            "Certificate not found.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "student.certificates"
+            )
+        )
+
+    # --------------------------------------------------------
+    # Ownership check
+    # --------------------------------------------------------
+
+    if certificate.StudentID != student_id:
+
+        flash(
+            "You do not have access to this certificate.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "student.certificates"
+            )
+        )
+
+    # --------------------------------------------------------
+    # PDF availability
+    # --------------------------------------------------------
+
+    if not certificate.PDFPath:
+
+        flash(
+            "Certificate PDF is not available.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "student.certificates"
+            )
+        )
+
+    # --------------------------------------------------------
+    # Prevent path traversal
+    # --------------------------------------------------------
+
+    filename = (
+        certificate.PDFPath
+        .replace("\\", "/")
+        .split("/")[-1]
+    )
+
+    if not filename:
+
+        flash(
+            "Invalid certificate file.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "student.certificates"
+            )
+        )
+
+    return send_from_directory(
+        current_app.config[
+            "CERTIFICATE_UPLOAD_FOLDER"
+        ],
+        filename,
+        as_attachment=True,
+    )
 
 
-@student_bp.route("/profile", methods=["GET", "POST"])
+# ============================================================
+# STUDENT PROFILE
+# ============================================================
+
+@student_bp.route(
+    "/profile",
+    methods=["GET", "POST"],
+)
 @login_required
 @role_required("Student")
 def profile():
-    user = User.query.get(session["user_id"])
+    """
+    Display and update the student's profile.
+    """
+
+    student_id = session.get(
+        "user_id"
+    )
+
+    user = db.session.get(
+        User,
+        student_id,
+    )
+
+    if user is None:
+
+        session.clear()
+
+        flash(
+            "Your account could not be found.",
+            "error",
+        )
+
+        return redirect(
+            url_for("auth.login")
+        )
+
     if request.method == "POST":
-        full_name = request.form.get("full_name", "").strip()
-        if full_name and len(full_name) >= 2:
-            user.FullName = full_name
-            session["user_name"] = full_name
-            db.session.commit()
-            flash("Profile updated successfully.", "success")
+
+        full_name = (
+            request.form.get(
+                "full_name",
+                "",
+            )
+            .strip()
+        )
+
+        if not full_name:
+
+            flash(
+                "Please enter your full name.",
+                "error",
+            )
+
+        elif len(full_name) < 2:
+
+            flash(
+                "Name must contain at least 2 characters.",
+                "error",
+            )
+
+        elif len(full_name) > 150:
+
+            flash(
+                "Name is too long.",
+                "error",
+            )
+
         else:
-            flash("Please enter a valid name.", "error")
-        return redirect(url_for("student.profile"))
-    return render_template("student/profile.html", user=user)
+
+            try:
+
+                user.FullName = full_name
+
+                db.session.commit()
+
+                session["user_name"] = (
+                    full_name
+                )
+
+                flash(
+                    "Profile updated successfully.",
+                    "success",
+                )
+
+            except Exception:
+
+                db.session.rollback()
+
+                flash(
+                    "Unable to update your profile.",
+                    "error",
+                )
+
+        return redirect(
+            url_for(
+                "student.profile"
+            )
+        )
+
+    return render_template(
+        "student/profile.html",
+        user=user,
+    )

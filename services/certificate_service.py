@@ -1,250 +1,1128 @@
 """
-Certificate business logic:
-- Eligibility checking (lessons complete + quizzes passed + final assessment passed)
+EduCertify — Certificate Service
+
+Business logic for:
+
+- Certificate eligibility checking
+- Lesson completion verification
+- Quiz and final assessment verification
+- Final score calculation
 - Unique certificate number generation
-- PDF generation (ReportLab)
-- QR code generation pointing to the public verification page
-- Public verification lookup
+- Certificate creation
+- QR-code generation
+- PDF certificate generation
+- Public certificate verification
+- Certificate revocation
+
+This service contains no Flask request/session handling.
 """
 
 import os
 from datetime import datetime, timezone
 
-from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas as pdf_canvas
 
 from database.database import db
-from database.models import Certificate, Enrollment, Quiz, QuizAttempt, Course, LessonProgress
+from database.models import (
+    Certificate,
+    Enrollment,
+    Quiz,
+    QuizAttempt,
+    Course,
+    LessonProgress,
+)
+
 from utils.helpers import generate_certificate_number
 from utils.qr_generator import generate_qr_code
 
 
+# ============================================================
+# CUSTOM EXCEPTION
+# ============================================================
+
 class CertificateError(Exception):
+    """
+    Raised when a certificate operation fails.
+    """
+
     pass
 
 
-def check_eligibility(student_id: int, course_id: int) -> dict:
+# ============================================================
+# CHECK CERTIFICATE ELIGIBILITY
+# ============================================================
+
+def check_eligibility(
+    student_id: int,
+    course_id: int,
+) -> dict:
     """
-    Returns a dict describing whether the student is eligible for a
-    certificate, and which requirements are outstanding.
+    Check whether a student has completed all requirements
+    for a course certificate.
+
+    Requirements:
+
+    1. Student must be enrolled.
+    2. All course lessons must be completed.
+    3. All module quizzes must be passed.
+    4. Final assessment must be passed if one exists.
+
+    Returns:
+        Dictionary containing eligibility information.
     """
-    course = Course.query.get(course_id)
-    if not course:
-        raise CertificateError("Course not found.")
 
-    enrollment = Enrollment.query.filter_by(StudentID=student_id, CourseID=course_id).first()
-    if not enrollment:
-        raise CertificateError("You are not enrolled in this course.")
+    # --------------------------------------------------------
+    # Find course
+    # --------------------------------------------------------
 
-    total_lessons = course.total_lessons
-    lesson_ids = [lesson.LessonID for module in course.modules for lesson in module.lessons]
-    completed_lessons = LessonProgress.query.filter(
-        LessonProgress.StudentID == student_id,
-        LessonProgress.LessonID.in_(lesson_ids) if lesson_ids else False,
-        LessonProgress.Completed.is_(True),
-    ).count() if lesson_ids else 0
+    course = db.session.get(
+        Course,
+        course_id,
+    )
 
-    lessons_done = total_lessons > 0 and completed_lessons == total_lessons
+    if course is None:
+        raise CertificateError(
+            "Course not found."
+        )
 
-    quizzes = Quiz.query.filter_by(CourseID=course_id).all()
-    module_quizzes = [q for q in quizzes if not q.IsFinalAssessment]
-    final_assessments = [q for q in quizzes if q.IsFinalAssessment]
+    # --------------------------------------------------------
+    # Check enrollment
+    # --------------------------------------------------------
 
-    module_quizzes_passed = all(
-        QuizAttempt.query.filter_by(StudentID=student_id, QuizID=q.QuizID, Passed=True).first() is not None
-        for q in module_quizzes
-    ) if module_quizzes else True
+    enrollment = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id,
+            CourseID=course_id,
+        )
+        .first()
+    )
+
+    if enrollment is None:
+        raise CertificateError(
+            "You are not enrolled in this course."
+        )
+
+    # --------------------------------------------------------
+    # Collect all lessons
+    # --------------------------------------------------------
+
+    lesson_ids = []
+
+    for module in course.modules:
+
+        for lesson in module.lessons:
+            lesson_ids.append(
+                lesson.LessonID
+            )
+
+    total_lessons = len(
+        lesson_ids
+    )
+
+    # --------------------------------------------------------
+    # Completed lessons
+    # --------------------------------------------------------
+
+    completed_lessons = 0
+
+    if lesson_ids:
+
+        completed_lessons = (
+            LessonProgress.query
+            .filter(
+                LessonProgress.StudentID
+                == student_id,
+
+                LessonProgress.LessonID.in_(
+                    lesson_ids
+                ),
+
+                LessonProgress.Completed.is_(True),
+            )
+            .count()
+        )
+
+    lessons_done = (
+        total_lessons > 0
+        and completed_lessons == total_lessons
+    )
+
+    # --------------------------------------------------------
+    # Course quizzes
+    # --------------------------------------------------------
+
+    quizzes = (
+        Quiz.query
+        .filter_by(
+            CourseID=course_id
+        )
+        .all()
+    )
+
+    module_quizzes = [
+        quiz
+        for quiz in quizzes
+        if not quiz.IsFinalAssessment
+    ]
+
+    final_assessments = [
+        quiz
+        for quiz in quizzes
+        if quiz.IsFinalAssessment
+    ]
+
+    # --------------------------------------------------------
+    # Module quizzes
+    # --------------------------------------------------------
+
+    module_quizzes_passed = True
+
+    for quiz in module_quizzes:
+
+        passed_attempt = (
+            QuizAttempt.query
+            .filter_by(
+                StudentID=student_id,
+                QuizID=quiz.QuizID,
+                Passed=True,
+            )
+            .first()
+        )
+
+        if passed_attempt is None:
+
+            module_quizzes_passed = False
+
+            break
+
+    # --------------------------------------------------------
+    # Final assessment
+    # --------------------------------------------------------
 
     final_score = None
     final_passed = True
+
     if final_assessments:
+
+        # The first final assessment is treated
+        # as the course final assessment.
         final_quiz = final_assessments[0]
+
         best_attempt = (
-            QuizAttempt.query.filter_by(StudentID=student_id, QuizID=final_quiz.QuizID, Passed=True)
-            .order_by(QuizAttempt.Percentage.desc())
+            QuizAttempt.query
+            .filter_by(
+                StudentID=student_id,
+                QuizID=final_quiz.QuizID,
+                Passed=True,
+            )
+            .order_by(
+                QuizAttempt.Percentage.desc()
+            )
             .first()
         )
-        final_passed = best_attempt is not None
-        if best_attempt:
-            final_score = best_attempt.Percentage
 
-    eligible = lessons_done and module_quizzes_passed and final_passed
+        final_passed = (
+            best_attempt is not None
+        )
+
+        if best_attempt:
+
+            final_score = (
+                best_attempt.Percentage
+            )
+
+    # --------------------------------------------------------
+    # Final eligibility
+    # --------------------------------------------------------
+
+    eligible = (
+        lessons_done
+        and module_quizzes_passed
+        and final_passed
+    )
 
     return {
         "eligible": eligible,
+
         "lessons_done": lessons_done,
+
         "total_lessons": total_lessons,
+
         "completed_lessons": completed_lessons,
-        "module_quizzes_passed": module_quizzes_passed,
-        "final_assessment_required": bool(final_assessments),
-        "final_passed": final_passed,
-        "final_score": final_score,
+
+        "module_quizzes_passed":
+            module_quizzes_passed,
+
+        "final_assessment_required":
+            bool(final_assessments),
+
+        "final_passed":
+            final_passed,
+
+        "final_score":
+            final_score,
     }
 
 
-def _calculate_final_score(student_id: int, course_id: int) -> float:
-    """Compute a final score for the certificate: average of all passed quiz
-    percentages for the course, falling back to 100 if there were no quizzes."""
-    quizzes = Quiz.query.filter_by(CourseID=course_id).all()
+# ============================================================
+# CALCULATE FINAL SCORE
+# ============================================================
+
+def _calculate_final_score(
+    student_id: int,
+    course_id: int,
+) -> float:
+    """
+    Calculate the certificate final score.
+
+    The score is the average of the student's best
+    attempt for each quiz.
+
+    If the course contains no quizzes, the score
+    defaults to 100%.
+    """
+
+    quizzes = (
+        Quiz.query
+        .filter_by(
+            CourseID=course_id
+        )
+        .all()
+    )
+
     if not quizzes:
         return 100.0
 
     scores = []
+
     for quiz in quizzes:
-        best = (
-            QuizAttempt.query.filter_by(StudentID=student_id, QuizID=quiz.QuizID)
-            .order_by(QuizAttempt.Percentage.desc())
+
+        best_attempt = (
+            QuizAttempt.query
+            .filter_by(
+                StudentID=student_id,
+                QuizID=quiz.QuizID,
+            )
+            .filter(
+                QuizAttempt.Percentage.isnot(None)
+            )
+            .order_by(
+                QuizAttempt.Percentage.desc()
+            )
             .first()
         )
-        if best:
-            scores.append(best.Percentage)
 
-    return round(sum(scores) / len(scores), 1) if scores else 100.0
+        if (
+            best_attempt
+            and best_attempt.Percentage is not None
+        ):
+
+            scores.append(
+                float(
+                    best_attempt.Percentage
+                )
+            )
+
+    if not scores:
+        return 100.0
+
+    return round(
+        sum(scores) / len(scores),
+        1,
+    )
 
 
-def issue_certificate(student_id: int, course_id: int, app_config) -> Certificate:
-    existing = Certificate.query.filter_by(StudentID=student_id, CourseID=course_id).first()
+# ============================================================
+# GENERATE UNIQUE CERTIFICATE NUMBER
+# ============================================================
+
+def _generate_unique_certificate_number():
+    """
+    Generate a certificate number that does not already
+    exist in the database.
+    """
+
+    # Try several times to avoid an accidental infinite loop.
+    for _ in range(20):
+
+        certificate_number = (
+            generate_certificate_number()
+        )
+
+        certificate_number = (
+            str(certificate_number)
+            .strip()
+            .upper()
+        )
+
+        existing = (
+            Certificate.query
+            .filter_by(
+                CertificateNumber=
+                certificate_number
+            )
+            .first()
+        )
+
+        if existing is None:
+            return certificate_number
+
+    raise CertificateError(
+        "Unable to generate a unique certificate number."
+    )
+
+
+# ============================================================
+# ISSUE CERTIFICATE
+# ============================================================
+
+def issue_certificate(
+    student_id: int,
+    course_id: int,
+    app_config,
+) -> Certificate:
+    """
+    Issue a certificate after all course requirements
+    have been satisfied.
+
+    Creates:
+
+    - Certificate database record
+    - QR code
+    - PDF certificate
+    """
+
+    # --------------------------------------------------------
+    # Check if certificate already exists
+    # --------------------------------------------------------
+
+    existing = (
+        Certificate.query
+        .filter_by(
+            StudentID=student_id,
+            CourseID=course_id,
+        )
+        .first()
+    )
+
     if existing:
         return existing
 
-    eligibility = check_eligibility(student_id, course_id)
+    # --------------------------------------------------------
+    # Check eligibility
+    # --------------------------------------------------------
+
+    eligibility = check_eligibility(
+        student_id,
+        course_id,
+    )
+
     if not eligibility["eligible"]:
-        raise CertificateError("You have not yet met all requirements for this certificate.")
 
-    final_score = _calculate_final_score(student_id, course_id)
+        raise CertificateError(
+            "You have not yet met all requirements "
+            "for this certificate."
+        )
 
-    # Ensure certificate number uniqueness
-    cert_number = generate_certificate_number()
-    while Certificate.query.filter_by(CertificateNumber=cert_number).first() is not None:
-        cert_number = generate_certificate_number()
+    # --------------------------------------------------------
+    # Find course/enrollment
+    # --------------------------------------------------------
+
+    course = db.session.get(
+        Course,
+        course_id,
+    )
+
+    if course is None:
+
+        raise CertificateError(
+            "Course not found."
+        )
+
+    enrollment = (
+        Enrollment.query
+        .filter_by(
+            StudentID=student_id,
+            CourseID=course_id,
+        )
+        .first()
+    )
+
+    if enrollment is None:
+
+        raise CertificateError(
+            "Enrollment not found."
+        )
+
+    # --------------------------------------------------------
+    # Calculate final score
+    # --------------------------------------------------------
+
+    final_score = _calculate_final_score(
+        student_id,
+        course_id,
+    )
+
+    # --------------------------------------------------------
+    # Generate certificate number
+    # --------------------------------------------------------
+
+    certificate_number = (
+        _generate_unique_certificate_number()
+    )
+
+    # --------------------------------------------------------
+    # Create certificate record
+    # --------------------------------------------------------
 
     certificate = Certificate(
         StudentID=student_id,
         CourseID=course_id,
-        CertificateNumber=cert_number,
+        CertificateNumber=certificate_number,
         FinalScore=final_score,
-        IssueDate=datetime.now(timezone.utc),
+        IssueDate=datetime.now(
+            timezone.utc
+        ),
         Status="Valid",
     )
-    db.session.add(certificate)
-    db.session.commit()
 
-    # Generate QR code pointing at the public verification page
-    verify_url = f"{app_config['BASE_URL']}/certificates/verify/{cert_number}"
-    qr_filename = f"{cert_number}.png"
-    generate_qr_code(verify_url, app_config["CERTIFICATE_UPLOAD_FOLDER"], qr_filename)
-    certificate.QRCodePath = qr_filename
+    try:
 
-    # Generate the PDF certificate
-    pdf_filename = f"{cert_number}.pdf"
-    generate_certificate_pdf(certificate, app_config["CERTIFICATE_UPLOAD_FOLDER"], pdf_filename, qr_filename)
-    certificate.PDFPath = pdf_filename
+        db.session.add(
+            certificate
+        )
 
-    db.session.commit()
-
-    # Mark enrollment completed
-    enrollment = Enrollment.query.filter_by(StudentID=student_id, CourseID=course_id).first()
-    if enrollment and enrollment.Status != "Completed":
-        enrollment.Status = "Completed"
-        enrollment.CompletionDate = datetime.now(timezone.utc)
         db.session.commit()
+
+        db.session.refresh(
+            certificate
+        )
+
+    except Exception as exc:
+
+        db.session.rollback()
+
+        raise CertificateError(
+            "Unable to create the certificate record."
+        ) from exc
+
+    # --------------------------------------------------------
+    # Certificate storage directory
+    # --------------------------------------------------------
+
+    certificate_folder = (
+        app_config.get(
+            "CERTIFICATE_UPLOAD_FOLDER"
+        )
+    )
+
+    if not certificate_folder:
+
+        raise CertificateError(
+            "Certificate storage folder is not configured."
+        )
+
+    os.makedirs(
+        certificate_folder,
+        exist_ok=True,
+    )
+
+    # --------------------------------------------------------
+    # Base URL
+    # --------------------------------------------------------
+
+    base_url = (
+        app_config.get(
+            "BASE_URL",
+            "",
+        )
+        or ""
+    ).rstrip("/")
+
+    if not base_url:
+
+        raise CertificateError(
+            "BASE_URL is not configured."
+        )
+
+    verify_url = (
+        f"{base_url}"
+        f"/certificates/verify/"
+        f"{certificate_number}"
+    )
+
+    # --------------------------------------------------------
+    # Generate QR code
+    # --------------------------------------------------------
+
+    qr_filename = (
+        f"{certificate_number}.png"
+    )
+
+    try:
+
+        generate_qr_code(
+            verify_url,
+            certificate_folder,
+            qr_filename,
+        )
+
+    except Exception as exc:
+
+        db.session.delete(
+            certificate
+        )
+
+        db.session.commit()
+
+        raise CertificateError(
+            "Unable to generate the certificate QR code."
+        ) from exc
+
+    certificate.QRCodePath = (
+        qr_filename
+    )
+
+    # --------------------------------------------------------
+    # Generate PDF
+    # --------------------------------------------------------
+
+    pdf_filename = (
+        f"{certificate_number}.pdf"
+    )
+
+    try:
+
+        generate_certificate_pdf(
+            certificate,
+            certificate_folder,
+            pdf_filename,
+            qr_filename,
+        )
+
+    except Exception as exc:
+
+        # Remove generated QR file if possible.
+        qr_path = os.path.join(
+            certificate_folder,
+            qr_filename,
+        )
+
+        if os.path.exists(qr_path):
+
+            try:
+                os.remove(qr_path)
+            except OSError:
+                pass
+
+        db.session.delete(
+            certificate
+        )
+
+        db.session.commit()
+
+        raise CertificateError(
+            "Unable to generate the certificate PDF."
+        ) from exc
+
+    certificate.PDFPath = (
+        pdf_filename
+    )
+
+    # --------------------------------------------------------
+    # Mark enrollment completed
+    # --------------------------------------------------------
+
+    enrollment.Status = "Completed"
+
+    if hasattr(
+        enrollment,
+        "CompletionDate",
+    ):
+
+        enrollment.CompletionDate = (
+            datetime.now(timezone.utc)
+        )
+
+    try:
+
+        db.session.commit()
+
+    except Exception as exc:
+
+        db.session.rollback()
+
+        raise CertificateError(
+            "Certificate was generated, but "
+            "the enrollment status could not be updated."
+        ) from exc
 
     return certificate
 
 
-def generate_certificate_pdf(certificate: Certificate, folder: str, filename: str, qr_filename: str):
-    """Render a professional landscape PDF certificate using ReportLab."""
-    os.makedirs(folder, exist_ok=True)
-    full_path = os.path.join(folder, filename)
-    qr_path = os.path.join(folder, qr_filename)
+# ============================================================
+# GENERATE CERTIFICATE PDF
+# ============================================================
+
+def generate_certificate_pdf(
+    certificate: Certificate,
+    folder: str,
+    filename: str,
+    qr_filename: str,
+):
+    """
+    Generate a professional landscape certificate
+    using ReportLab.
+    """
+
+    os.makedirs(
+        folder,
+        exist_ok=True,
+    )
+
+    full_path = os.path.join(
+        folder,
+        filename,
+    )
+
+    qr_path = os.path.join(
+        folder,
+        qr_filename,
+    )
 
     page_size = landscape(A4)
+
     width, height = page_size
-    c = pdf_canvas.Canvas(full_path, pagesize=page_size)
 
-    navy = HexColor("#0b1f3a")
-    blue = HexColor("#2563eb")
-    gray = HexColor("#64748b")
+    pdf = pdf_canvas.Canvas(
+        full_path,
+        pagesize=page_size,
+    )
 
-    # Border
-    c.setStrokeColor(blue)
-    c.setLineWidth(3)
-    c.rect(1.2 * cm, 1.2 * cm, width - 2.4 * cm, height - 2.4 * cm)
-    c.setStrokeColor(navy)
-    c.setLineWidth(0.75)
-    c.rect(1.5 * cm, 1.5 * cm, width - 3 * cm, height - 3 * cm)
+    # --------------------------------------------------------
+    # Colors
+    # --------------------------------------------------------
 
+    navy = HexColor(
+        "#0b1f3a"
+    )
+
+    blue = HexColor(
+        "#2563eb"
+    )
+
+    gray = HexColor(
+        "#64748b"
+    )
+
+    # --------------------------------------------------------
+    # Outer border
+    # --------------------------------------------------------
+
+    pdf.setStrokeColor(
+        blue
+    )
+
+    pdf.setLineWidth(
+        3
+    )
+
+    pdf.rect(
+        1.2 * cm,
+        1.2 * cm,
+        width - 2.4 * cm,
+        height - 2.4 * cm,
+    )
+
+    # --------------------------------------------------------
+    # Inner border
+    # --------------------------------------------------------
+
+    pdf.setStrokeColor(
+        navy
+    )
+
+    pdf.setLineWidth(
+        0.75
+    )
+
+    pdf.rect(
+        1.5 * cm,
+        1.5 * cm,
+        width - 3 * cm,
+        height - 3 * cm,
+    )
+
+    # --------------------------------------------------------
     # Header
-    c.setFillColor(navy)
-    c.setFont("Helvetica-Bold", 26)
-    c.drawCentredString(width / 2, height - 3.2 * cm, "EDUCERTIFY")
+    # --------------------------------------------------------
 
-    c.setFont("Helvetica", 14)
-    c.setFillColor(gray)
-    c.drawCentredString(width / 2, height - 4.1 * cm, "Certificate of Completion")
+    pdf.setFillColor(
+        navy
+    )
 
-    # Body
-    c.setFillColor(gray)
-    c.setFont("Helvetica", 12)
-    c.drawCentredString(width / 2, height - 5.6 * cm, "This certificate is proudly presented to")
+    pdf.setFont(
+        "Helvetica-Bold",
+        26,
+    )
 
-    c.setFillColor(navy)
-    c.setFont("Helvetica-Bold", 28)
-    c.drawCentredString(width / 2, height - 6.8 * cm, certificate.student.FullName)
+    pdf.drawCentredString(
+        width / 2,
+        height - 3.2 * cm,
+        "EDUCERTIFY",
+    )
 
-    c.setFillColor(gray)
-    c.setFont("Helvetica", 12)
-    c.drawCentredString(width / 2, height - 7.9 * cm, "for successfully completing")
+    pdf.setFont(
+        "Helvetica",
+        14,
+    )
 
-    c.setFillColor(blue)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawCentredString(width / 2, height - 8.9 * cm, certificate.course.Title)
+    pdf.setFillColor(
+        gray
+    )
 
-    c.setFillColor(navy)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawCentredString(width / 2, height - 9.9 * cm, f"Final Score: {certificate.FinalScore}%")
+    pdf.drawCentredString(
+        width / 2,
+        height - 4.1 * cm,
+        "Certificate of Completion",
+    )
 
-    issue_str = certificate.IssueDate.strftime("%d %B %Y")
-    c.setFillColor(gray)
-    c.setFont("Helvetica", 11)
-    c.drawCentredString(width / 2, height - 10.6 * cm, f"Issued: {issue_str}")
+    # --------------------------------------------------------
+    # Intro text
+    # --------------------------------------------------------
 
-    # Certificate ID (bottom left)
-    c.setFillColor(navy)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(2.2 * cm, 2.4 * cm, "Certificate ID:")
-    c.setFont("Helvetica", 11)
-    c.drawString(2.2 * cm, 1.9 * cm, certificate.CertificateNumber)
+    pdf.setFillColor(
+        gray
+    )
 
-    # QR code (bottom right)
+    pdf.setFont(
+        "Helvetica",
+        12,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 5.6 * cm,
+        "This certificate is proudly presented to",
+    )
+
+    # --------------------------------------------------------
+    # Student name
+    # --------------------------------------------------------
+
+    student_name = (
+        certificate.student.FullName
+        if certificate.student
+        else "Student"
+    )
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        28,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 6.8 * cm,
+        student_name,
+    )
+
+    # --------------------------------------------------------
+    # Course completion
+    # --------------------------------------------------------
+
+    pdf.setFillColor(
+        gray
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        12,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 7.9 * cm,
+        "for successfully completing",
+    )
+
+    course_title = (
+        certificate.course.Title
+        if certificate.course
+        else "Course"
+    )
+
+    pdf.setFillColor(
+        blue
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        20,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 8.9 * cm,
+        course_title,
+    )
+
+    # --------------------------------------------------------
+    # Score
+    # --------------------------------------------------------
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        13,
+    )
+
+    score = (
+        certificate.FinalScore
+        if certificate.FinalScore is not None
+        else 0
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 9.9 * cm,
+        f"Final Score: {score}%",
+    )
+
+    # --------------------------------------------------------
+    # Issue date
+    # --------------------------------------------------------
+
+    issue_date = certificate.IssueDate
+
+    if issue_date:
+
+        issue_str = issue_date.strftime(
+            "%d %B %Y"
+        )
+
+    else:
+
+        issue_str = "N/A"
+
+    pdf.setFillColor(
+        gray
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        11,
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        height - 10.6 * cm,
+        f"Issued: {issue_str}",
+    )
+
+    # --------------------------------------------------------
+    # Certificate ID
+    # --------------------------------------------------------
+
+    pdf.setFillColor(
+        navy
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        11,
+    )
+
+    pdf.drawString(
+        2.2 * cm,
+        2.4 * cm,
+        "Certificate ID:",
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        11,
+    )
+
+    pdf.drawString(
+        2.2 * cm,
+        1.9 * cm,
+        certificate.CertificateNumber,
+    )
+
+    # --------------------------------------------------------
+    # QR code
+    # --------------------------------------------------------
+
     if os.path.exists(qr_path):
+
         qr_size = 2.6 * cm
-        c.drawImage(qr_path, width - 2.2 * cm - qr_size, 1.6 * cm, qr_size, qr_size)
-        c.setFont("Helvetica", 8)
-        c.setFillColor(gray)
-        c.drawRightString(width - 2.2 * cm, 1.35 * cm, "Scan to verify")
 
-    c.setFont("Helvetica-Oblique", 9)
-    c.setFillColor(gray)
-    c.drawCentredString(width / 2, 1.7 * cm, "Verify this certificate at the EduCertify Verification Portal")
+        pdf.drawImage(
+            qr_path,
+            width - 2.2 * cm - qr_size,
+            1.6 * cm,
+            qr_size,
+            qr_size,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
 
-    c.showPage()
-    c.save()
+        pdf.setFont(
+            "Helvetica",
+            8,
+        )
+
+        pdf.setFillColor(
+            gray
+        )
+
+        pdf.drawRightString(
+            width - 2.2 * cm,
+            1.35 * cm,
+            "Scan to verify",
+        )
+
+    # --------------------------------------------------------
+    # Footer
+    # --------------------------------------------------------
+
+    pdf.setFont(
+        "Helvetica-Oblique",
+        9,
+    )
+
+    pdf.setFillColor(
+        gray
+    )
+
+    pdf.drawCentredString(
+        width / 2,
+        1.7 * cm,
+        "Verify this certificate at the EduCertify Verification Portal",
+    )
+
+    # --------------------------------------------------------
+    # Save PDF
+    # --------------------------------------------------------
+
+    pdf.showPage()
+
+    pdf.save()
 
 
-def verify_certificate(certificate_number: str):
-    """Public lookup - no login required. Returns Certificate or None."""
+# ============================================================
+# VERIFY CERTIFICATE
+# ============================================================
+
+def verify_certificate(
+    certificate_number: str,
+):
+    """
+    Public certificate lookup.
+
+    No authentication is required.
+
+    Returns:
+        Certificate object or None.
+    """
+
     if not certificate_number:
         return None
-    return Certificate.query.filter_by(CertificateNumber=certificate_number.strip().upper()).first()
+
+    certificate_number = (
+        str(certificate_number)
+        .strip()
+        .upper()
+    )
+
+    if not certificate_number:
+        return None
+
+    return (
+        Certificate.query
+        .filter_by(
+            CertificateNumber=
+            certificate_number
+        )
+        .first()
+    )
 
 
-def revoke_certificate(certificate_id: int, reason: str = ""):
-    certificate = Certificate.query.get(certificate_id)
-    if not certificate:
-        raise CertificateError("Certificate not found.")
+# ============================================================
+# REVOKE CERTIFICATE
+# ============================================================
+
+def revoke_certificate(
+    certificate_id: int,
+    reason: str = "",
+) -> Certificate:
+    """
+    Revoke a certificate.
+
+    Args:
+        certificate_id: Certificate database ID.
+        reason: Optional revocation reason.
+
+    Returns:
+        Updated Certificate.
+    """
+
+    certificate = db.session.get(
+        Certificate,
+        certificate_id,
+    )
+
+    if certificate is None:
+
+        raise CertificateError(
+            "Certificate not found."
+        )
+
+    if certificate.Status == "Revoked":
+
+        raise CertificateError(
+            "This certificate has already been revoked."
+        )
+
     certificate.Status = "Revoked"
-    db.session.commit()
+
+    # Store reason only if your model has a corresponding
+    # field. This keeps the service compatible with the
+    # current model.
+    if (
+        reason
+        and hasattr(
+            certificate,
+            "RevocationReason",
+        )
+    ):
+
+        certificate.RevocationReason = (
+            reason.strip()
+        )
+
+    try:
+
+        db.session.commit()
+
+    except Exception as exc:
+
+        db.session.rollback()
+
+        raise CertificateError(
+            "Unable to revoke the certificate."
+        ) from exc
+
     return certificate

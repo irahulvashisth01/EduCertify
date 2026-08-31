@@ -1,26 +1,485 @@
 {% extends "base.html" %}
-{% block title %}Contact{% endblock %}
-{% block content %}
-<div class="container ec-fade-in" style="max-width: 640px; padding: 60px 20px;">
-  <h1>Contact Us</h1>
-  <p style="color: var(--ec-gray); margin-top: 10px;">Have a question? Reach out and we'll get back to you.</p>
 
-  <form class="mt-4" style="margin-top: 24px;">
-    <div class="mb-3">
-      <label class="ec-form-label">Name</label>
-      <input type="text" class="ec-form-control" placeholder="Your name" required>
+{% block title %}Contact Us{% endblock %}
+
+{% block body_class %}ec-contact-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public-pages.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<!-- =========================================================
+     CONTACT HERO
+========================================================= -->
+<section class="ec-contact-hero">
+
+    <div class="container">
+
+        <div class="ec-contact-hero-content">
+
+            <span class="ec-section-kicker">
+                WE'RE HERE TO HELP
+            </span>
+
+            <h1>
+                Have a question?
+                <span>Let's talk.</span>
+            </h1>
+
+            <p>
+                Whether you have a question about courses, certificates,
+                accounts or the platform, we'd be happy to hear from you.
+            </p>
+
+        </div>
+
     </div>
-    <div class="mb-3">
-      <label class="ec-form-label">Email</label>
-      <input type="email" class="ec-form-control" placeholder="you@example.com" required>
+
+</section>
+
+
+<!-- =========================================================
+     CONTACT AREA
+========================================================= -->
+<section class="ec-contact-section">
+
+    <div class="container">
+
+        <div class="row g-5 align-items-start">
+
+            <!-- CONTACT INFORMATION -->
+            <div class="col-lg-5">
+
+                <div class="ec-contact-info">
+
+                    <span class="ec-section-kicker">
+                        CONTACT INFORMATION
+                    </span>
+
+                    <h2>
+                        Get in touch
+                        with our team.
+                    </h2>
+
+                    <p class="ec-contact-intro">
+                        Send us your question and we'll help you find
+                        the right direction.
+                    </p>
+
+
+                    <!-- PHONE -->
+                    <a href="tel:+917056212054"
+                       class="ec-contact-detail">
+
+                        <div class="ec-contact-detail-icon">
+                            <i class="fa-solid fa-phone"></i>
+                        </div>
+
+                        <div>
+
+                            <span>Phone</span>
+
+                            <strong>
+                                +91 70562 12054
+                            </strong>
+
+                        </div>
+
+                    </a>
+
+
+                    <!-- EMAIL -->
+                    <a href="mailto:admin@educertify.com"
+                       class="ec-contact-detail">
+
+                        <div class="ec-contact-detail-icon">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+
+                        <div>
+
+                            <span>Email</span>
+
+                            <strong>
+                                admin@educertify.com
+                            </strong>
+
+                        </div>
+
+                    </a>
+
+
+                    <!-- SUPPORT -->
+                    <div class="ec-contact-detail">
+
+                        <div class="ec-contact-detail-icon">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+
+                        <div>
+
+                            <span>Support</span>
+
+                            <strong>
+                                EduCertify Support Team
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="ec-contact-response">
+
+                        <i class="fa-solid fa-circle-info"></i>
+
+                        <p>
+                            Please include enough information about your
+                            question so our team can understand the issue
+                            quickly.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONTACT FORM -->
+            <div class="col-lg-7">
+
+                <div class="ec-contact-form-card">
+
+                    <div class="ec-contact-form-header">
+
+                        <div>
+
+                            <span class="ec-section-kicker">
+                                SEND A MESSAGE
+                            </span>
+
+                            <h2>How can we help?</h2>
+
+                        </div>
+
+                        <div class="ec-contact-form-icon">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+
+                    </div>
+
+
+                    <!--
+                        No backend contact endpoint currently exists
+                        in the supplied public routes, so this form is
+                        intentionally left without an action.
+                    -->
+                    <form
+                        class="ec-contact-form"
+                        id="contactForm"
+                        onsubmit="return false;"
+                    >
+
+                        <div class="row g-3">
+
+                            <!-- NAME -->
+                            <div class="col-md-6">
+
+                                <label for="contactName">
+                                    Your Name
+                                </label>
+
+                                <div class="ec-input-wrapper">
+
+                                    <i class="fa-regular fa-user"></i>
+
+                                    <input
+                                        type="text"
+                                        id="contactName"
+                                        name="name"
+                                        placeholder="Enter your name"
+                                        autocomplete="name"
+                                        required
+                                    >
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- EMAIL -->
+                            <div class="col-md-6">
+
+                                <label for="contactEmail">
+                                    Email Address
+                                </label>
+
+                                <div class="ec-input-wrapper">
+
+                                    <i class="fa-regular fa-envelope"></i>
+
+                                    <input
+                                        type="email"
+                                        id="contactEmail"
+                                        name="email"
+                                        placeholder="you@example.com"
+                                        autocomplete="email"
+                                        required
+                                    >
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- SUBJECT -->
+                            <div class="col-12">
+
+                                <label for="contactSubject">
+                                    Subject
+                                </label>
+
+                                <div class="ec-input-wrapper">
+
+                                    <i class="fa-solid fa-tag"></i>
+
+                                    <input
+                                        type="text"
+                                        id="contactSubject"
+                                        name="subject"
+                                        placeholder="What is your question about?"
+                                        required
+                                    >
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- MESSAGE -->
+                            <div class="col-12">
+
+                                <label for="contactMessage">
+                                    Message
+                                </label>
+
+                                <div class="ec-textarea-wrapper">
+
+                                    <textarea
+                                        id="contactMessage"
+                                        name="message"
+                                        rows="6"
+                                        placeholder="Tell us how we can help..."
+                                        required
+                                    ></textarea>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- BUTTON -->
+                            <div class="col-12">
+
+                                <button
+                                    type="button"
+                                    class="ec-btn ec-btn-primary ec-contact-submit"
+                                    id="contactSubmit"
+                                >
+
+                                    <i class="fa-solid fa-paper-plane"></i>
+
+                                    Send Message
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+
+
+                    <div
+                        class="ec-contact-demo-note"
+                        id="contactDemoMessage"
+                    >
+                        <i class="fa-solid fa-circle-info"></i>
+
+                        <span>
+                            Contact form submission will be connected
+                            to the support backend when the contact
+                            service is enabled.
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
-    <div class="mb-3">
-      <label class="ec-form-label">Message</label>
-      <textarea class="ec-form-control" rows="5" placeholder="How can we help?" required></textarea>
+
+</section>
+
+
+<!-- =========================================================
+     QUICK HELP
+========================================================= -->
+<section class="ec-contact-help">
+
+    <div class="container">
+
+        <div class="ec-section-heading">
+
+            <span class="ec-section-kicker">
+                QUICK HELP
+            </span>
+
+            <h2>
+                Looking for something
+                <span>specific?</span>
+            </h2>
+
+        </div>
+
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+
+                <a href="{{ url_for('courses.index') }}"
+                   class="ec-help-card">
+
+                    <div class="ec-help-icon">
+                        <i class="fa-solid fa-book-open"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Course information</h3>
+
+                        <p>
+                            Browse available courses and find
+                            something to learn.
+                        </p>
+
+                    </div>
+
+                    <i class="fa-solid fa-arrow-right ec-help-arrow"></i>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <a href="{{ url_for('certificate.verify_form') }}"
+                   class="ec-help-card">
+
+                    <div class="ec-help-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Verify a certificate</h3>
+
+                        <p>
+                            Check the authenticity of an EduCertify
+                            certificate.
+                        </p>
+
+                    </div>
+
+                    <i class="fa-solid fa-arrow-right ec-help-arrow"></i>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <a href="{{ url_for('auth.login') }}"
+                   class="ec-help-card">
+
+                    <div class="ec-help-icon">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Account support</h3>
+
+                        <p>
+                            Access your account and continue
+                            your learning journey.
+                        </p>
+
+                    </div>
+
+                    <i class="fa-solid fa-arrow-right ec-help-arrow"></i>
+
+                </a>
+
+            </div>
+
+        </div>
+
     </div>
-    <button type="submit" class="ec-btn ec-btn-primary ec-btn-block">
-      <i class="fa-solid fa-paper-plane"></i> Send Message
-    </button>
-  </form>
-</div>
+
+</section>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const button = document.getElementById("contactSubmit");
+    const message = document.getElementById("contactDemoMessage");
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener("click", function () {
+
+        const form = document.getElementById("contactForm");
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        if (message) {
+
+            message.classList.add("show");
+
+            message.innerHTML = `
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    Your message is ready to be connected to the
+                    EduCertify support service.
+                </span>
+            `;
+
+        }
+
+    });
+
+});
+
+</script>
+
 {% endblock %}

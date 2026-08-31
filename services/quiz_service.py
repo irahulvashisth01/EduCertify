@@ -1,34 +1,150 @@
 """
-Quiz engine business logic: attempts, scoring, pass/fail determination.
-Correct answers are never exposed to the caller until after submission.
+EduCertify — Quiz Service
+
+Business logic for:
+- Loading quizzes for students
+- Starting quiz attempts
+- Submitting quiz answers
+- Calculating scores
+- Determining pass/fail status
+- Finding the best attempt
+- Checking whether a student has passed
+- Calculating remaining attempts
+
+Correct answers are NEVER exposed while a student is taking a quiz.
 """
 
 from datetime import datetime, timezone
-from database.database import db
-from database.models import Quiz, Question, QuizAttempt, QuizAnswer
 
+from database.database import db
+from database.models import (
+    Quiz,
+    Question,
+    QuizAttempt,
+    QuizAnswer,
+)
+
+
+# ============================================================
+# CUSTOM EXCEPTION
+# ============================================================
 
 class QuizError(Exception):
+    """
+    Raised when a quiz operation cannot be completed.
+    """
+
     pass
 
 
-def get_quiz_for_taking(quiz_id: int):
-    """Return the quiz plus questions serialized WITHOUT correct answers."""
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        raise QuizError("Quiz not found.")
-    questions = [q.to_public_dict() for q in quiz.questions]
+# ============================================================
+# GET QUIZ FOR TAKING
+# ============================================================
+
+def get_quiz_for_taking(
+    quiz_id: int,
+):
+    """
+    Return a quiz and its questions without exposing
+    correct answers.
+
+    Returns:
+        tuple:
+            (Quiz, list[dict])
+
+    Raises:
+        QuizError:
+            If the quiz does not exist.
+    """
+
+    if not quiz_id:
+        raise QuizError(
+            "Quiz ID is required."
+        )
+
+    quiz = db.session.get(
+        Quiz,
+        quiz_id,
+    )
+
+    if quiz is None:
+        raise QuizError(
+            "Quiz not found."
+        )
+
+    questions = [
+        question.to_public_dict()
+        for question in quiz.questions
+    ]
+
     return quiz, questions
 
 
-def start_attempt(student_id: int, quiz_id: int) -> QuizAttempt:
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        raise QuizError("Quiz not found.")
+# ============================================================
+# START QUIZ ATTEMPT
+# ============================================================
 
-    previous_attempts = QuizAttempt.query.filter_by(StudentID=student_id, QuizID=quiz_id).count()
-    if previous_attempts >= quiz.AttemptsAllowed:
-        raise QuizError(f"You have used all {quiz.AttemptsAllowed} allowed attempts for this quiz.")
+def start_attempt(
+    student_id: int,
+    quiz_id: int,
+) -> QuizAttempt:
+    """
+    Start a new quiz attempt for a student.
+
+    The number of attempts is limited by the quiz's
+    AttemptsAllowed field.
+    """
+
+    if not student_id:
+        raise QuizError(
+            "Student ID is required."
+        )
+
+    if not quiz_id:
+        raise QuizError(
+            "Quiz ID is required."
+        )
+
+    quiz = db.session.get(
+        Quiz,
+        quiz_id,
+    )
+
+    if quiz is None:
+        raise QuizError(
+            "Quiz not found."
+        )
+
+    # --------------------------------------------------------
+    # Validate attempt limit
+    # --------------------------------------------------------
+
+    attempts_allowed = (
+        quiz.AttemptsAllowed
+        if quiz.AttemptsAllowed is not None
+        else 3
+    )
+
+    previous_attempts = (
+        QuizAttempt.query
+        .filter_by(
+            StudentID=student_id,
+            QuizID=quiz_id,
+        )
+        .count()
+    )
+
+    if previous_attempts >= attempts_allowed:
+
+        raise QuizError(
+            f"You have used all "
+            f"{attempts_allowed} allowed attempts "
+            f"for this quiz."
+        )
+
+    # --------------------------------------------------------
+    # Create attempt
+    # --------------------------------------------------------
 
     attempt = QuizAttempt(
         QuizID=quiz_id,
@@ -36,71 +152,381 @@ def start_attempt(student_id: int, quiz_id: int) -> QuizAttempt:
         AttemptNumber=previous_attempts + 1,
         StartedAt=datetime.now(timezone.utc),
     )
-    db.session.add(attempt)
-    db.session.commit()
+
+    try:
+
+        db.session.add(attempt)
+
+        db.session.commit()
+
+        db.session.refresh(attempt)
+
+    except Exception as exc:
+
+        db.session.rollback()
+
+        raise QuizError(
+            "Unable to start the quiz. "
+            "Please try again."
+        ) from exc
+
     return attempt
 
 
-def submit_attempt(student_id: int, attempt_id: int, answers: dict) -> QuizAttempt:
+# ============================================================
+# SUBMIT QUIZ ATTEMPT
+# ============================================================
+
+def submit_attempt(
+    student_id: int,
+    attempt_id: int,
+    answers: dict,
+) -> QuizAttempt:
     """
-    answers: dict mapping question_id (str or int) -> selected_option ('A'/'B'/'C'/'D')
+    Submit a student's quiz attempt.
+
+    Args:
+        student_id:
+            ID of the student submitting the quiz.
+
+        attempt_id:
+            QuizAttempt ID.
+
+        answers:
+            Dictionary mapping question IDs to selected
+            options.
+
+            Example:
+
+                {
+                    "1": "A",
+                    "2": "C",
+                    "3": "B"
+                }
+
+    Correct answers are read internally from the database
+    and are never returned to the client.
     """
-    attempt = QuizAttempt.query.get(attempt_id)
-    if not attempt or attempt.StudentID != student_id:
-        raise QuizError("Attempt not found.")
+
+    if not student_id:
+        raise QuizError(
+            "Student ID is required."
+        )
+
+    if not attempt_id:
+        raise QuizError(
+            "Attempt ID is required."
+        )
+
+    if not isinstance(answers, dict):
+        raise QuizError(
+            "Invalid answers format."
+        )
+
+    # --------------------------------------------------------
+    # Find attempt
+    # --------------------------------------------------------
+
+    attempt = db.session.get(
+        QuizAttempt,
+        attempt_id,
+    )
+
+    if (
+        attempt is None
+        or attempt.StudentID != student_id
+    ):
+
+        raise QuizError(
+            "Attempt not found."
+        )
+
+    # --------------------------------------------------------
+    # Prevent duplicate submission
+    # --------------------------------------------------------
 
     if attempt.CompletedAt is not None:
-        raise QuizError("This attempt has already been submitted.")
 
-    quiz = Quiz.query.get(attempt.QuizID)
-    questions = {q.QuestionID: q for q in quiz.questions}
+        raise QuizError(
+            "This attempt has already been submitted."
+        )
 
-    total_marks_possible = sum(q.Marks for q in questions.values()) or 1
+    # --------------------------------------------------------
+    # Find quiz
+    # --------------------------------------------------------
+
+    quiz = db.session.get(
+        Quiz,
+        attempt.QuizID,
+    )
+
+    if quiz is None:
+
+        raise QuizError(
+            "Quiz not found."
+        )
+
+    questions = {
+        question.QuestionID: question
+        for question in quiz.questions
+    }
+
+    if not questions:
+
+        raise QuizError(
+            "This quiz does not contain any questions."
+        )
+
+    # --------------------------------------------------------
+    # Calculate total marks
+    # --------------------------------------------------------
+
+    total_marks_possible = sum(
+        question.Marks or 0
+        for question in questions.values()
+    )
+
+    if total_marks_possible <= 0:
+
+        total_marks_possible = 1
+
     total_marks_obtained = 0
 
-    for question_id, question in questions.items():
-        selected = answers.get(str(question_id)) or answers.get(question_id)
-        is_correct = bool(selected) and selected.strip().upper() == question.CorrectOption.upper()
-        marks = question.Marks if is_correct else 0
-        total_marks_obtained += marks
+    allowed_options = {
+        "A",
+        "B",
+        "C",
+        "D",
+    }
 
-        answer_record = QuizAnswer(
-            AttemptID=attempt.AttemptID,
-            QuestionID=question_id,
-            SelectedOption=(selected or "").upper() if selected else None,
-            IsCorrect=is_correct,
-            MarksObtained=marks,
+    # --------------------------------------------------------
+    # Process answers
+    # --------------------------------------------------------
+
+    try:
+
+        for question_id, question in questions.items():
+
+            selected = (
+                answers.get(str(question_id))
+                if str(question_id) in answers
+                else answers.get(question_id)
+            )
+
+            if selected is not None:
+
+                selected = str(
+                    selected
+                ).strip().upper()
+
+            # Invalid option = unanswered
+            if selected not in allowed_options:
+
+                selected = None
+
+            is_correct = (
+                selected is not None
+                and selected
+                == str(
+                    question.CorrectOption
+                ).strip().upper()
+            )
+
+            marks = (
+                question.Marks or 0
+                if is_correct
+                else 0
+            )
+
+            total_marks_obtained += marks
+
+            answer_record = QuizAnswer(
+                AttemptID=attempt.AttemptID,
+                QuestionID=question_id,
+                SelectedOption=selected,
+                IsCorrect=is_correct,
+                MarksObtained=marks,
+            )
+
+            db.session.add(
+                answer_record
+            )
+
+        # ----------------------------------------------------
+        # Calculate result
+        # ----------------------------------------------------
+
+        percentage = round(
+            (
+                total_marks_obtained
+                / total_marks_possible
+            )
+            * 100,
+            1,
         )
-        db.session.add(answer_record)
 
-    percentage = round((total_marks_obtained / total_marks_possible) * 100, 1)
-    passed = percentage >= quiz.PassingScore
+        passing_score = (
+            quiz.PassingScore
+            if quiz.PassingScore is not None
+            else 70
+        )
 
-    attempt.Score = total_marks_obtained
-    attempt.Percentage = percentage
-    attempt.Passed = passed
-    attempt.CompletedAt = datetime.now(timezone.utc)
+        passed = (
+            percentage >= passing_score
+        )
 
-    db.session.commit()
+        # ----------------------------------------------------
+        # Update attempt
+        # ----------------------------------------------------
+
+        attempt.Score = (
+            total_marks_obtained
+        )
+
+        attempt.Percentage = percentage
+
+        attempt.Passed = passed
+
+        attempt.CompletedAt = (
+            datetime.now(timezone.utc)
+        )
+
+        db.session.commit()
+
+        db.session.refresh(
+            attempt
+        )
+
+    except QuizError:
+
+        db.session.rollback()
+
+        raise
+
+    except Exception as exc:
+
+        db.session.rollback()
+
+        raise QuizError(
+            "Unable to submit the quiz. "
+            "Please try again."
+        ) from exc
+
     return attempt
 
 
-def get_best_attempt(student_id: int, quiz_id: int):
+# ============================================================
+# GET BEST ATTEMPT
+# ============================================================
+
+def get_best_attempt(
+    student_id: int,
+    quiz_id: int,
+):
+    """
+    Return the student's highest-scoring completed attempt.
+
+    Returns:
+        QuizAttempt | None
+    """
+
+    if not student_id or not quiz_id:
+
+        return None
+
     return (
-        QuizAttempt.query.filter_by(StudentID=student_id, QuizID=quiz_id)
-        .order_by(QuizAttempt.Percentage.desc())
+        QuizAttempt.query
+        .filter_by(
+            StudentID=student_id,
+            QuizID=quiz_id,
+        )
+        .filter(
+            QuizAttempt.CompletedAt.isnot(None)
+        )
+        .order_by(
+            QuizAttempt.Percentage.desc()
+        )
         .first()
     )
 
 
-def has_passed_quiz(student_id: int, quiz_id: int) -> bool:
-    attempt = QuizAttempt.query.filter_by(StudentID=student_id, QuizID=quiz_id, Passed=True).first()
+# ============================================================
+# CHECK PASSED QUIZ
+# ============================================================
+
+def has_passed_quiz(
+    student_id: int,
+    quiz_id: int,
+) -> bool:
+    """
+    Return True if the student has at least one
+    completed passing attempt.
+    """
+
+    if not student_id or not quiz_id:
+
+        return False
+
+    attempt = (
+        QuizAttempt.query
+        .filter_by(
+            StudentID=student_id,
+            QuizID=quiz_id,
+            Passed=True,
+        )
+        .filter(
+            QuizAttempt.CompletedAt.isnot(None)
+        )
+        .first()
+    )
+
     return attempt is not None
 
 
-def get_remaining_attempts(student_id: int, quiz_id: int) -> int:
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
+# ============================================================
+# GET REMAINING ATTEMPTS
+# ============================================================
+
+def get_remaining_attempts(
+    student_id: int,
+    quiz_id: int,
+) -> int:
+    """
+    Calculate how many attempts the student has remaining.
+
+    Returns:
+        int
+    """
+
+    if not student_id or not quiz_id:
+
         return 0
-    used = QuizAttempt.query.filter_by(StudentID=student_id, QuizID=quiz_id).count()
-    return max(0, quiz.AttemptsAllowed - used)
+
+    quiz = db.session.get(
+        Quiz,
+        quiz_id,
+    )
+
+    if quiz is None:
+
+        return 0
+
+    attempts_allowed = (
+        quiz.AttemptsAllowed
+        if quiz.AttemptsAllowed is not None
+        else 3
+    )
+
+    used = (
+        QuizAttempt.query
+        .filter_by(
+            StudentID=student_id,
+            QuizID=quiz_id,
+        )
+        .count()
+    )
+
+    return max(
+        0,
+        attempts_allowed - used,
+    )

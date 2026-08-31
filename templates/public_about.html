@@ -1,37 +1,378 @@
 {% extends "base.html" %}
-{% block title %}About{% endblock %}
+
+{% block title %}About Us{% endblock %}
+
+{% block body_class %}ec-about-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public-pages.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="container ec-fade-in" style="max-width: 860px; padding: 60px 20px;">
-  <h1>About EduCertify</h1>
-  <p style="color: var(--ec-gray); font-size: 1.05rem; line-height: 1.7; margin-top: 16px;">
-    EduCertify is an online learning and certification platform built to help students gain
-    real, verifiable skills through structured courses, hands-on lessons, and assessments.
-    Instructors design courses with modules, lessons, and quizzes, while our verification
-    system ensures every certificate issued can be checked for authenticity — instantly,
-    without needing an account.
-  </p>
-  <div class="row mt-4" style="margin-top: 40px;">
-    <div class="col-md-4 mb-3">
-      <div class="ec-card p-4">
-        <i class="fa-solid fa-book-open" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
-        <h5 class="mt-3">Structured Learning</h5>
-        <p style="color: var(--ec-gray); font-size: 0.9rem;">Courses broken into modules and lessons with clear progress tracking.</p>
-      </div>
+
+<!-- =========================================================
+     ABOUT HERO
+========================================================= -->
+<section class="ec-inner-hero">
+
+    <div class="container">
+
+        <div class="ec-inner-hero-content">
+
+            <span class="ec-section-kicker">
+                ABOUT EDUCERTIFY
+            </span>
+
+            <h1>
+                Learning should lead
+                <span>somewhere.</span>
+            </h1>
+
+            <p>
+                EduCertify is a learning and certification platform created
+                to make skill development more structured, practical and
+                meaningful for students.
+            </p>
+
+        </div>
+
     </div>
-    <div class="col-md-4 mb-3">
-      <div class="ec-card p-4">
-        <i class="fa-solid fa-clipboard-check" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
-        <h5 class="mt-3">Real Assessments</h5>
-        <p style="color: var(--ec-gray); font-size: 0.9rem;">Quizzes and final assessments that verify actual understanding.</p>
-      </div>
+
+</section>
+
+
+<!-- =========================================================
+     OUR STORY
+========================================================= -->
+<section class="ec-about-story">
+
+    <div class="container">
+
+        <div class="row align-items-center g-5">
+
+            <div class="col-lg-6">
+
+                <div class="ec-about-visual">
+
+                    <div class="ec-about-main-icon">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+
+                    <div class="ec-about-floating ec-floating-one">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Learn</span>
+                    </div>
+
+                    <div class="ec-about-floating ec-floating-two">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                        <span>Assess</span>
+                    </div>
+
+                    <div class="ec-about-floating ec-floating-three">
+                        <i class="fa-solid fa-award"></i>
+                        <span>Certify</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-lg-6">
+
+                <span class="ec-section-kicker">
+                    OUR APPROACH
+                </span>
+
+                <h2 class="ec-about-title">
+                    More than just
+                    <span>watching lessons.</span>
+                </h2>
+
+                <p class="ec-about-text">
+                    EduCertify is designed around an idea that learning is
+                    more useful when students can actually demonstrate what
+                    they have learned.
+                </p>
+
+                <p class="ec-about-text">
+                    Courses are organized into modules and lessons. Students
+                    track their progress, complete quizzes and assessments,
+                    and can eventually earn certificates based on their
+                    completed learning requirements.
+                </p>
+
+                <div class="ec-about-check-list">
+
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        Structured courses and lessons
+                    </div>
+
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        Progress tracking
+                    </div>
+
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        Knowledge assessments
+                    </div>
+
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        Public certificate verification
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
-    <div class="col-md-4 mb-3">
-      <div class="ec-card p-4">
-        <i class="fa-solid fa-award" style="color: var(--ec-blue); font-size: 1.5rem;"></i>
-        <h5 class="mt-3">Verifiable Certificates</h5>
-        <p style="color: var(--ec-gray); font-size: 0.9rem;">Every certificate has a unique ID and QR code anyone can verify.</p>
-      </div>
+
+</section>
+
+
+<!-- =========================================================
+     HOW IT WORKS
+========================================================= -->
+<section class="ec-about-process">
+
+    <div class="container">
+
+        <div class="ec-section-heading">
+
+            <span class="ec-section-kicker">
+                HOW IT WORKS
+            </span>
+
+            <h2>
+                From first lesson
+                <span>to certification.</span>
+            </h2>
+
+            <p>
+                A straightforward learning flow designed for students.
+            </p>
+
+        </div>
+
+
+        <div class="ec-process-grid">
+
+            <div class="ec-process-item">
+
+                <span class="ec-process-number">01</span>
+
+                <div class="ec-process-icon">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+
+                <h3>Choose a course</h3>
+
+                <p>
+                    Find a course that matches your interests,
+                    goals or career direction.
+                </p>
+
+            </div>
+
+
+            <div class="ec-process-line"></div>
+
+
+            <div class="ec-process-item">
+
+                <span class="ec-process-number">02</span>
+
+                <div class="ec-process-icon">
+                    <i class="fa-solid fa-laptop"></i>
+                </div>
+
+                <h3>Learn and practice</h3>
+
+                <p>
+                    Work through lessons and complete the learning
+                    activities provided by instructors.
+                </p>
+
+            </div>
+
+
+            <div class="ec-process-line"></div>
+
+
+            <div class="ec-process-item">
+
+                <span class="ec-process-number">03</span>
+
+                <div class="ec-process-icon">
+                    <i class="fa-solid fa-list-check"></i>
+                </div>
+
+                <h3>Complete assessments</h3>
+
+                <p>
+                    Test your understanding through quizzes and
+                    required assessments.
+                </p>
+
+            </div>
+
+
+            <div class="ec-process-line"></div>
+
+
+            <div class="ec-process-item">
+
+                <span class="ec-process-number">04</span>
+
+                <div class="ec-process-icon">
+                    <i class="fa-solid fa-certificate"></i>
+                </div>
+
+                <h3>Earn your certificate</h3>
+
+                <p>
+                    Meet the requirements and receive a certificate
+                    that can be publicly verified.
+                </p>
+
+            </div>
+
+        </div>
+
     </div>
-  </div>
-</div>
+
+</section>
+
+
+<!-- =========================================================
+     VALUES
+========================================================= -->
+<section class="ec-about-values">
+
+    <div class="container">
+
+        <div class="ec-section-header">
+
+            <div>
+
+                <span class="ec-section-kicker">
+                    WHAT MATTERS TO US
+                </span>
+
+                <h2>Built around useful learning.</h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="row g-4">
+
+            <div class="col-md-4">
+
+                <article class="ec-value-card">
+
+                    <div class="ec-value-icon">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+
+                    <h3>Practicality</h3>
+
+                    <p>
+                        Learning should help students develop knowledge
+                        and skills that they can actually use.
+                    </p>
+
+                </article>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <article class="ec-value-card">
+
+                    <div class="ec-value-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+
+                    <h3>Progress</h3>
+
+                    <p>
+                        Clear progress indicators help learners understand
+                        where they are and what remains.
+                    </p>
+
+                </article>
+
+            </div>
+
+
+            <div class="col-md-4">
+
+                <article class="ec-value-card">
+
+                    <div class="ec-value-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+
+                    <h3>Trust</h3>
+
+                    <p>
+                        Certificates include verification information so
+                        their authenticity can be checked independently.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =========================================================
+     TEAM CREDIT
+========================================================= -->
+<section class="ec-team-credit">
+
+    <div class="container">
+
+        <div class="ec-team-card">
+
+            <div class="ec-team-icon">
+                <i class="fa-solid fa-users"></i>
+            </div>
+
+            <div>
+
+                <span class="ec-section-kicker">
+                    PROJECT TEAM
+                </span>
+
+                <h2>
+                    Rahul Sharma & Team
+                </h2>
+
+                <p>
+                    Designed and developed as a collaborative
+                    EduCertify project.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
 {% endblock %}
