@@ -1,26 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}
-Certificates
-{% endblock %}
-
+{% block title %}My Certificates | EduCertify{% endblock %}
 
 {% block extra_css %}
 
 <link
     rel="stylesheet"
-    href="{{ url_for(
-        'static',
-        filename='css/dashboard.css'
-    ) }}"
+    href="{{ url_for('static', filename='css/dashboard.css') }}"
 >
 
 <link
     rel="stylesheet"
-    href="{{ url_for(
-        'static',
-        filename='css/certificate.css'
-    ) }}"
+    href="{{ url_for('static', filename='css/certificate.css') }}"
 >
 
 {% endblock %}
@@ -31,326 +22,785 @@ Certificates
 <div class="ec-dash-layout">
 
     {% set active_page = 'certificates' %}
-
     {% include "student/_sidebar.html" %}
 
 
-    <div class="ec-dash-content ec-fade-in">
+    <main class="ec-dash-content ec-fade-in">
 
-        <!-- ================================================= -->
-        <!-- PAGE HEADER -->
-        <!-- ================================================= -->
+        <!-- =====================================================
+             PAGE HEADER
+        ====================================================== -->
 
-        <h2>
-            My Certificates
-        </h2>
+        <section class="cert-page-header">
 
-        <p
-            style="
-                color: var(--ec-gray);
-                margin-bottom: 24px;
-            "
-        >
-            Download and share your earned certificates.
-        </p>
+            <div>
 
-
-        <!-- ================================================= -->
-        <!-- READY TO GENERATE -->
-        <!-- ================================================= -->
-
-        {% if eligible_courses %}
-
-        <div
-            class="ec-card p-3 mb-4"
-            style="
-                border-left:
-                4px solid
-                var(--ec-success);
-            "
-        >
-
-            <h6>
-
-                <i
-                    class="fa-solid fa-circle-check"
-                    style="
-                        color:
-                        var(--ec-success);
-                    "
-                ></i>
-
-                Ready to generate
-
-            </h6>
-
-
-            {% for course in eligible_courses %}
-
-            <div
-                class="
-                    d-flex
-                    justify-content-between
-                    align-items-center
-                "
-                style="
-                    display: flex;
-                    padding: 8px 0;
-                    border-top:
-                    1px solid
-                    var(--ec-border);
-                "
-            >
-
-                <span>
-                    {{ course.Title }}
+                <span class="cert-eyebrow">
+                    <i class="fa-solid fa-award"></i>
+                    ACHIEVEMENT CENTER
                 </span>
 
+                <h1>
+                    My Certificates
+                </h1>
 
-                <form
-                    method="POST"
-                    action="{{ url_for(
-                        'student.generate_certificate',
-                        course_id=course.CourseID
-                    ) }}"
-                >
-
-                    <button
-                        type="submit"
-                        class="
-                            ec-btn
-                            ec-btn-success
-                            ec-btn-sm
-                        "
-                    >
-
-                        <i
-                            class="
-                                fa-solid
-                                fa-award
-                            "
-                        ></i>
-
-                        Generate Certificate
-
-                    </button>
-
-                </form>
+                <p>
+                    View, download, verify and share your
+                    EduCertify achievements.
+                </p>
 
             </div>
 
-            {% endfor %}
+            <div class="cert-header-icon">
 
-        </div>
+                <i class="fa-solid fa-certificate"></i>
 
-        {% endif %}
+            </div>
 
-
-        <!-- ================================================= -->
-        <!-- ISSUED CERTIFICATES -->
-        <!-- ================================================= -->
-
-        {% if certificates %}
-
-        <div class="row g-4">
-
-            {% for cert in certificates %}
-
-            <div class="col-md-4">
-
-                <div class="ec-cert-card">
+        </section>
 
 
-                    <!-- Award icon -->
+        <!-- =====================================================
+             READY TO GENERATE
+        ====================================================== -->
 
-                    <i
-                        class="
-                            fa-solid
-                            fa-award
-                        "
-                        style="
-                            font-size: 1.8rem;
-                            color:
-                            var(--ec-blue);
-                        "
-                    ></i>
+        {% if eligible_courses %}
 
+        <section class="cert-ready-section">
 
-                    <!-- Course -->
+            <div class="cert-ready-header">
 
-                    <h6
-                        style="
-                            margin-top: 10px;
-                        "
-                    >
-                        {{ cert.course.Title }}
-                    </h6>
+                <div class="cert-ready-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
 
+                <div>
 
-                    <!-- Score/date -->
+                    <h3>
+                        Certificate Ready
+                    </h3>
 
-                    <p
-                        style="
-                            font-size: 0.85rem;
-                            color:
-                            var(--ec-gray);
-                        "
-                    >
-
-                        Score:
-                        {{ cert.FinalScore }}%
-
-                        &middot;
-
-                        {% if cert.IssueDate %}
-
-                            {{ cert.IssueDate.strftime(
-                                '%d %b %Y'
-                            ) }}
-
-                        {% else %}
-
-                            N/A
-
-                        {% endif %}
-
+                    <p>
+                        Congratulations! You have completed
+                        the requirements for the following course.
                     </p>
-
-
-                    <!-- Certificate number -->
-
-                    <span
-                        class="ec-cert-number"
-                    >
-                        {{ cert.CertificateNumber }}
-                    </span>
-
-
-                    <!-- Status -->
-
-                    <div
-                        style="
-                            margin-top: 6px;
-                        "
-                    >
-
-                        {% if cert.Status == 'Valid' %}
-
-                            <span
-                                class="
-                                    ec-badge
-                                    ec-badge-success
-                                "
-                            >
-                                Valid
-                            </span>
-
-                        {% else %}
-
-                            <span
-                                class="
-                                    ec-badge
-                                    ec-badge-danger
-                                "
-                            >
-                                Revoked
-                            </span>
-
-                        {% endif %}
-
-                    </div>
-
-
-                    <!-- Download -->
-
-                    {% if cert.PDFPath %}
-
-                    <a
-                        href="{{ url_for(
-                            'student.download_certificate',
-                            certificate_id=cert.CertificateID
-                        ) }}"
-                        class="
-                            ec-btn
-                            ec-btn-primary
-                            ec-btn-sm
-                            ec-btn-block
-                            mt-3
-                        "
-                    >
-
-                        <i
-                            class="
-                                fa-solid
-                                fa-download
-                            "
-                        ></i>
-
-                        Download PDF
-
-                    </a>
-
-                    {% else %}
-
-                    <button
-                        type="button"
-                        class="
-                            ec-btn
-                            ec-btn-secondary
-                            ec-btn-sm
-                            ec-btn-block
-                            mt-3
-                        "
-                        disabled
-                    >
-
-                        PDF unavailable
-
-                    </button>
-
-                    {% endif %}
-
 
                 </div>
 
             </div>
 
-            {% endfor %}
 
-        </div>
+            <div class="cert-ready-list">
+
+                {% for course in eligible_courses %}
+
+                <div class="cert-ready-item">
+
+                    <div class="cert-ready-course">
+
+                        <div class="cert-course-icon">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                {{ course.Title }}
+                            </strong>
+
+                            <span>
+                                Course requirements completed
+                            </span>
+
+                        </div>
+
+                    </div>
 
 
-        <!-- ================================================= -->
-        <!-- NO CERTIFICATE BUT NOT ELIGIBLE -->
-        <!-- ================================================= -->
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'student.generate_certificate',
+                            course_id=course.CourseID
+                        ) }}"
+                    >
 
-        {% elif not eligible_courses %}
+                        <button
+                            type="submit"
+                            class="cert-generate-btn"
+                        >
 
-        <div class="ec-empty-state">
+                            <i class="fa-solid fa-award"></i>
 
-            <i
-                class="
-                    fa-solid
-                    fa-award
-                "
-            ></i>
+                            Generate Certificate
 
-            <p>
-                No certificates yet.
-                Complete all course requirements
-                to earn one!
-            </p>
+                        </button>
 
-        </div>
+                    </form>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
 
         {% endif %}
 
 
-    </div>
+
+        <!-- =====================================================
+             ISSUED CERTIFICATES
+        ====================================================== -->
+
+        {% if certificates %}
+
+        <section class="certificates-section">
+
+            <div class="section-title-row">
+
+                <div>
+
+                    <span class="section-eyebrow">
+                        YOUR ACHIEVEMENTS
+                    </span>
+
+                    <h2>
+                        Earned Certificates
+                    </h2>
+
+                </div>
+
+                <div class="certificate-count">
+
+                    <i class="fa-solid fa-award"></i>
+
+                    {{ certificates|length }}
+
+                    {% if certificates|length == 1 %}
+                        Certificate
+                    {% else %}
+                        Certificates
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <div class="certificate-grid">
+
+                {% for cert in certificates %}
+
+                <article class="certificate-card">
+
+
+                    <!-- ==========================================
+                         CERTIFICATE PREVIEW
+                    =========================================== -->
+
+                    <div class="certificate-preview">
+
+                        <!-- Decorative corners -->
+
+                        <div class="cert-corner cert-corner-tl"></div>
+                        <div class="cert-corner cert-corner-tr"></div>
+                        <div class="cert-corner cert-corner-bl"></div>
+                        <div class="cert-corner cert-corner-br"></div>
+
+
+                        <!-- Gold top decoration -->
+
+                        <div class="cert-gold-line"></div>
+
+
+                        <!-- Logo -->
+
+                        <div class="preview-brand">
+
+                            <div class="preview-logo">
+
+                                <img
+                                    src="{{ url_for(
+                                        'static',
+                                        filename='images/logo.png'
+                                    ) }}"
+                                    alt="EduCertify Logo"
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                >
+
+                                <div class="preview-logo-fallback">
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                </div>
+
+                            </div>
+
+
+                            <div class="preview-brand-text">
+
+                                <strong>
+                                    <span>Edu</span>Certify
+                                </strong>
+
+                                <small>
+                                    Learn • Certify • Succeed
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Certificate heading -->
+
+                        <div class="preview-heading">
+
+                            <span>
+                                CERTIFICATE
+                            </span>
+
+                            <div class="preview-subheading">
+
+                                <span></span>
+
+                                OF COMPLETION
+
+                                <span></span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Presented to -->
+
+                        <div class="preview-presented">
+
+                            This certificate is proudly presented to
+
+                        </div>
+
+
+                        <!-- Student -->
+
+                        <div class="preview-student">
+
+                            {{ cert.student.Name
+                                if cert.student is defined
+                                and cert.student
+                                else session.get('name', 'Student')
+                            }}
+
+                        </div>
+
+
+                        <div class="preview-gold-divider"></div>
+
+
+                        <!-- Completion text -->
+
+                        <div class="preview-completion">
+
+                            for successfully completing the course
+
+                        </div>
+
+
+                        <!-- Course -->
+
+                        <div class="preview-course">
+
+                            {{ cert.course.Title }}
+
+                        </div>
+
+
+                        <!-- Score -->
+
+                        <div class="preview-score">
+
+                            <span>
+                                Final Score:
+                            </span>
+
+                            <strong>
+                                {{ cert.FinalScore }}%
+                            </strong>
+
+                        </div>
+
+
+                        <!-- Issue Date -->
+
+                        <div class="preview-date">
+
+                            <i class="fa-regular fa-calendar"></i>
+
+                            Issued on:
+
+                            {% if cert.IssueDate %}
+
+                                {{ cert.IssueDate.strftime('%d %B %Y') }}
+
+                            {% else %}
+
+                                N/A
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <!-- Signature -->
+
+                        <div class="preview-signature">
+
+                            <div class="signature-text">
+                                Rahul Sharma
+                            </div>
+
+                            <div class="signature-line"></div>
+
+                            <strong>
+                                Rahul Sharma
+                            </strong>
+
+                            <span>
+                                Founder & CEO, EduCertify
+                            </span>
+
+                        </div>
+
+
+                        <!-- Seal -->
+
+                        <div class="certificate-seal">
+
+                            <div class="seal-inner">
+
+                                <div class="seal-stars">
+                                    ★ ★ ★
+                                </div>
+
+                                <i class="fa-solid fa-graduation-cap"></i>
+
+                                <strong>
+                                    CERTIFIED
+                                </strong>
+
+                                <small>
+                                    BY EDUCERTIFY
+                                </small>
+
+                                <div class="seal-stars">
+                                    ★ ★ ★
+                                </div>
+
+                            </div>
+
+                            <div class="seal-ribbon">
+                                <span></span>
+                                <span></span>
+                            </div>
+
+                        </div>
+
+
+                        <!-- QR -->
+
+                        <div class="preview-qr">
+
+                            <div class="qr-placeholder">
+
+                                {% if cert.CertificateNumber %}
+
+                                    <span>
+                                        QR
+                                    </span>
+
+                                {% else %}
+
+                                    <i class="fa-solid fa-qrcode"></i>
+
+                                {% endif %}
+
+                            </div>
+
+                            <small>
+                                Scan to verify
+                            </small>
+
+                        </div>
+
+
+                        <!-- Certificate ID -->
+
+                        <div class="preview-id">
+
+                            <span>
+                                Certificate ID
+                            </span>
+
+                            <strong>
+                                {{ cert.CertificateNumber }}
+                            </strong>
+
+                        </div>
+
+
+                        <!-- Watermark -->
+
+                        <div class="preview-watermark">
+
+                            <i class="fa-solid fa-graduation-cap"></i>
+
+                        </div>
+
+
+                        <!-- Bottom feature bar -->
+
+                        <div class="preview-footer">
+
+                            <div>
+                                <i class="fa-solid fa-book-open"></i>
+                                <span>
+                                    Industry Relevant<br>
+                                    Curriculum
+                                </span>
+                            </div>
+
+                            <div>
+                                <i class="fa-solid fa-user-tie"></i>
+                                <span>
+                                    Expert<br>
+                                    Instructors
+                                </span>
+                            </div>
+
+                            <div>
+                                <i class="fa-solid fa-medal"></i>
+                                <span>
+                                    Verified<br>
+                                    Certificate
+                                </span>
+                            </div>
+
+                            <div>
+                                <i class="fa-solid fa-globe"></i>
+                                <span>
+                                    Lifetime<br>
+                                    Verification
+                                </span>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ==========================================
+                         CERTIFICATE INFORMATION
+                    =========================================== -->
+
+                    <div class="certificate-info">
+
+                        <div class="certificate-info-header">
+
+                            <div class="certificate-award-icon">
+
+                                <i class="fa-solid fa-award"></i>
+
+                            </div>
+
+                            <div>
+
+                                <h3>
+                                    {{ cert.course.Title }}
+                                </h3>
+
+                                <p>
+                                    Certificate of Completion
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Metadata -->
+
+                        <div class="certificate-meta">
+
+                            <div class="certificate-meta-item">
+
+                                <span>
+                                    <i class="fa-solid fa-hashtag"></i>
+                                    Certificate ID
+                                </span>
+
+                                <strong>
+                                    {{ cert.CertificateNumber }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="certificate-meta-item">
+
+                                <span>
+                                    <i class="fa-solid fa-star"></i>
+                                    Final Score
+                                </span>
+
+                                <strong>
+                                    {{ cert.FinalScore }}%
+                                </strong>
+
+                            </div>
+
+
+                            <div class="certificate-meta-item">
+
+                                <span>
+                                    <i class="fa-regular fa-calendar"></i>
+                                    Issued
+                                </span>
+
+                                <strong>
+
+                                    {% if cert.IssueDate %}
+
+                                        {{ cert.IssueDate.strftime('%d %b %Y') }}
+
+                                    {% else %}
+
+                                        N/A
+
+                                    {% endif %}
+
+                                </strong>
+
+                            </div>
+
+
+                            <div class="certificate-meta-item">
+
+                                <span>
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    Status
+                                </span>
+
+                                {% if cert.Status == 'Valid' %}
+
+                                    <strong class="status-valid">
+
+                                        <i class="fa-solid fa-circle-check"></i>
+
+                                        Valid
+
+                                    </strong>
+
+                                {% else %}
+
+                                    <strong class="status-revoked">
+
+                                        <i class="fa-solid fa-circle-xmark"></i>
+
+                                        Revoked
+
+                                    </strong>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Actions -->
+
+                        <div class="certificate-actions">
+
+                            {% if cert.PDFPath %}
+
+                            <a
+                                href="{{ url_for(
+                                    'student.download_certificate',
+                                    certificate_id=cert.CertificateID
+                                ) }}"
+                                class="cert-action cert-action-primary"
+                                target="_blank"
+                            >
+
+                                <i class="fa-solid fa-file-pdf"></i>
+
+                                Download PDF
+
+                            </a>
+
+                            {% else %}
+
+                            <button
+                                type="button"
+                                class="cert-action cert-action-disabled"
+                                disabled
+                            >
+
+                                <i class="fa-solid fa-file-circle-xmark"></i>
+
+                                PDF Unavailable
+
+                            </button>
+
+                            {% endif %}
+
+
+                            <a
+                                href="{{ url_for(
+                                    'certificate.verify',
+                                    certificate_number=cert.CertificateNumber
+                                ) }}"
+                                class="cert-action cert-action-outline"
+                                target="_blank"
+                            >
+
+                                <i class="fa-solid fa-shield-halved"></i>
+
+                                Verify
+
+                            </a>
+
+
+                            <button
+                                type="button"
+                                class="cert-action cert-action-share"
+                                data-cert-id="{{ cert.CertificateNumber }}"
+                                data-course="{{ cert.course.Title }}"
+                                onclick="shareCertificate(this)"
+                            >
+
+                                <i class="fa-solid fa-share-nodes"></i>
+
+                                Share
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </article>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             ACHIEVEMENT FOOTER
+        ====================================================== -->
+
+        <section class="certificate-trust-section">
+
+            <div class="trust-item">
+
+                <i class="fa-solid fa-shield-halved"></i>
+
+                <div>
+                    <strong>Verified Certificates</strong>
+                    <span>Authentic & publicly verifiable</span>
+                </div>
+
+            </div>
+
+
+            <div class="trust-item">
+
+                <i class="fa-solid fa-qrcode"></i>
+
+                <div>
+                    <strong>QR Verification</strong>
+                    <span>Verify certificates instantly</span>
+                </div>
+
+            </div>
+
+
+            <div class="trust-item">
+
+                <i class="fa-solid fa-cloud-arrow-down"></i>
+
+                <div>
+                    <strong>Digital Download</strong>
+                    <span>Keep your certificate forever</span>
+                </div>
+
+            </div>
+
+
+            <div class="trust-item">
+
+                <i class="fa-solid fa-share-nodes"></i>
+
+                <div>
+                    <strong>Easy Sharing</strong>
+                    <span>Share your achievement</span>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        {% elif not eligible_courses %}
+
+
+        <!-- =====================================================
+             EMPTY STATE
+        ====================================================== -->
+
+        <section class="certificate-empty">
+
+            <div class="empty-certificate-icon">
+
+                <i class="fa-solid fa-award"></i>
+
+            </div>
+
+            <h2>
+                Your certificates will appear here
+            </h2>
+
+            <p>
+                Complete all lessons and required assessments
+                to earn your EduCertify certificate.
+            </p>
+
+            <a
+                href="{{ url_for('student.courses') }}"
+                class="cert-empty-btn"
+            >
+
+                <i class="fa-solid fa-graduation-cap"></i>
+
+                Continue Learning
+
+            </a>
+
+        </section>
+
+
+        {% endif %}
+
+    </main>
 
 </div>
 
 {% endblock %}
+
 
 
 {% block extra_js %}
@@ -361,5 +811,72 @@ Certificates
         filename='js/dashboard.js'
     ) }}"
 ></script>
+
+
+<script>
+
+function shareCertificate(button) {
+
+    const certificateId =
+        button.dataset.certId;
+
+    const course =
+        button.dataset.course;
+
+    const verificationUrl =
+        window.location.origin +
+        "/certificates/verify/" +
+        encodeURIComponent(certificateId);
+
+
+    const shareText =
+        "I successfully completed " +
+        course +
+        " on EduCertify. " +
+        "Certificate ID: " +
+        certificateId;
+
+
+    if (navigator.share) {
+
+        navigator.share({
+
+            title:
+                "EduCertify Certificate",
+
+            text:
+                shareText,
+
+            url:
+                verificationUrl
+
+        }).catch(function () {});
+
+    } else {
+
+        navigator.clipboard.writeText(
+            shareText +
+            "\nVerify: " +
+            verificationUrl
+        ).then(function () {
+
+            alert(
+                "Certificate verification link copied!"
+            );
+
+        }).catch(function () {
+
+            prompt(
+                "Copy certificate verification link:",
+                verificationUrl
+            );
+
+        });
+
+    }
+
+}
+
+</script>
 
 {% endblock %}
