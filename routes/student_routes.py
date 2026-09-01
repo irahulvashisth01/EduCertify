@@ -1089,13 +1089,30 @@ def generate_certificate(course_id):
 # ============================================================
 
 @student_bp.route(
-    "/certificates/<int:certificate_id>/download"
+    "/certificates/<int:certificate_id>/download",
+    methods=["GET"],
 )
 @login_required
 @role_required("Student")
 def download_certificate(certificate_id):
+    """
+    Securely download a student's certificate PDF.
+
+    Security:
+        - Requires Student login.
+        - Allows access only to the certificate owner.
+        - Strips directory components from PDFPath.
+        - Verifies that the physical PDF exists before download.
+        - Logs useful server-side diagnostics without exposing
+          filesystem paths to the user.
+    """
 
     student_id = session.get("user_id")
+
+    if not student_id:
+        return redirect(
+            url_for("auth.login")
+        )
 
     # --------------------------------------------------------
     # Find certificate
@@ -1113,13 +1130,11 @@ def download_certificate(certificate_id):
         )
 
         return redirect(
-            url_for(
-                "student.certificates"
-            )
+            url_for("student.certificates")
         )
 
     # --------------------------------------------------------
-    # Security check
+    # Security: certificate ownership
     # --------------------------------------------------------
 
     if certificate.StudentID != student_id:
@@ -1129,60 +1144,97 @@ def download_certificate(certificate_id):
         )
 
         return redirect(
-            url_for(
-                "student.certificates"
-            )
+            url_for("student.certificates")
         )
 
     # --------------------------------------------------------
-    # Certificate folder
+    # Certificate storage directory
     # --------------------------------------------------------
 
     certificate_folder = current_app.config.get(
         "CERTIFICATE_UPLOAD_FOLDER"
     )
 
+    # Safe fallback for development/demo deployments.
     if not certificate_folder:
-        flash(
-            "Certificate storage is not configured.",
-            "error",
+        certificate_folder = os.path.join(
+            current_app.root_path,
+            "uploads",
+            "certificates",
         )
 
-        return redirect(
-            url_for(
-                "student.certificates"
-            )
-        )
+    certificate_folder = os.path.abspath(
+        os.fspath(certificate_folder)
+    )
 
     # --------------------------------------------------------
-    # PDF filename
+    # Determine PDF filename
     # --------------------------------------------------------
 
-    filename = (
-        certificate.PDFPath
-        or f"{certificate.CertificateNumber}.pdf"
+    stored_pdf_path = getattr(
+        certificate,
+        "PDFPath",
+        None,
+    )
+
+    certificate_number = getattr(
+        certificate,
+        "CertificateNumber",
+        None,
     )
 
     filename = (
-        os.path.basename(
-            filename.replace("\\", "/")
+        stored_pdf_path
+        or (
+            f"{certificate_number}.pdf"
+            if certificate_number
+            else None
         )
     )
 
     if not filename:
+        current_app.logger.error(
+            "Certificate %s has no PDF filename.",
+            certificate_id,
+        )
+
         flash(
-            "Certificate PDF filename is invalid.",
+            "Certificate PDF is not available.",
             "error",
         )
 
         return redirect(
-            url_for(
-                "student.certificates"
-            )
+            url_for("student.certificates")
+        )
+
+    # Normalize Windows paths and prevent path traversal.
+    filename = os.path.basename(
+        str(filename)
+        .replace("\\", "/")
+    )
+
+    # Ensure the final file is a PDF.
+    if (
+        not filename
+        or not filename.lower().endswith(".pdf")
+    ):
+        current_app.logger.error(
+            "Invalid certificate PDF filename for "
+            "certificate %s.",
+            certificate_id,
+        )
+
+        flash(
+            "Invalid certificate PDF.",
+            "error",
+        )
+
+        return redirect(
+            url_for("student.certificates")
         )
 
     # --------------------------------------------------------
-    # Full PDF path
+    # Verify physical PDF exists
     # --------------------------------------------------------
 
     pdf_path = os.path.join(
@@ -1190,33 +1242,54 @@ def download_certificate(certificate_id):
         filename,
     )
 
-    # --------------------------------------------------------
-    # Check file exists
-    # --------------------------------------------------------
-
     if not os.path.isfile(pdf_path):
+        current_app.logger.error(
+            "Certificate PDF missing. "
+            "CertificateID=%s, Filename=%s, Folder=%s",
+            certificate_id,
+            filename,
+            certificate_folder,
+        )
 
         flash(
-            "Certificate PDF file was not found on the server.",
+            "Certificate PDF was not found on the server. "
+            "Please generate the certificate again.",
             "error",
         )
 
         return redirect(
-            url_for(
-                "student.certificates"
-            )
+            url_for("student.certificates")
         )
 
     # --------------------------------------------------------
     # Download
     # --------------------------------------------------------
 
-    return send_from_directory(
-        certificate_folder,
-        filename,
-        as_attachment=True,
-        download_name=filename,
-    )
+    try:
+        return send_from_directory(
+            certificate_folder,
+            filename,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/pdf",
+        )
+
+    except Exception:
+        current_app.logger.exception(
+            "Certificate PDF download failed. "
+            "CertificateID=%s",
+            certificate_id,
+        )
+
+        flash(
+            "Unable to download the certificate right now.",
+            "error",
+        )
+
+        return redirect(
+            url_for("student.certificates")
+        )
+
 
 # ============================================================
 # STUDENT PROFILE
