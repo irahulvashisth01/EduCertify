@@ -21,7 +21,6 @@ from flask import (
     redirect,
     render_template,
     request,
-    send_from_directory,
     session,
     url_for,
 )
@@ -59,6 +58,10 @@ from services.certificate_service import (
     check_eligibility,
     issue_certificate,
     CertificateError,
+)
+
+from services.supabase_service import (
+    create_certificate_download_url,
 )
 
 from services.quiz_service import (
@@ -1098,13 +1101,15 @@ def download_certificate(certificate_id):
     """
     Securely download a student's certificate PDF.
 
+    Certificates are stored in Supabase Storage instead of the
+    Render local filesystem.
+
     Security:
         - Requires Student login.
         - Allows access only to the certificate owner.
-        - Strips directory components from PDFPath.
-        - Verifies that the physical PDF exists before download.
-        - Logs useful server-side diagnostics without exposing
-          filesystem paths to the user.
+        - Uses the PDFPath stored in the Certificate record.
+        - Creates a temporary signed Supabase URL.
+        - Never exposes the Supabase secret key to the browser.
     """
 
     student_id = session.get("user_id")
@@ -1148,27 +1153,26 @@ def download_certificate(certificate_id):
         )
 
     # --------------------------------------------------------
-    # Certificate storage directory
+    # Certificate status
     # --------------------------------------------------------
 
-    certificate_folder = current_app.config.get(
-        "CERTIFICATE_UPLOAD_FOLDER"
-    )
+    if getattr(
+        certificate,
+        "Status",
+        "Valid",
+    ) != "Valid":
 
-    # Safe fallback for development/demo deployments.
-    if not certificate_folder:
-        certificate_folder = os.path.join(
-            current_app.root_path,
-            "uploads",
-            "certificates",
+        flash(
+            "This certificate is no longer valid.",
+            "error",
         )
 
-    certificate_folder = os.path.abspath(
-        os.fspath(certificate_folder)
-    )
+        return redirect(
+            url_for("student.certificates")
+        )
 
     # --------------------------------------------------------
-    # Determine PDF filename
+    # Determine Supabase storage path
     # --------------------------------------------------------
 
     stored_pdf_path = getattr(
@@ -1183,18 +1187,28 @@ def download_certificate(certificate_id):
         None,
     )
 
-    filename = (
-        stored_pdf_path
-        or (
-            f"{certificate_number}.pdf"
-            if certificate_number
-            else None
-        )
+    storage_path = (
+        str(stored_pdf_path).strip()
+        if stored_pdf_path
+        else ""
     )
 
-    if not filename:
+    # --------------------------------------------------------
+    # Backward compatibility
+    #
+    # Older certificates may have only a filename in PDFPath.
+    # New certificates use the same filename as the object path
+    # in the certificates bucket.
+    # --------------------------------------------------------
+
+    if not storage_path and certificate_number:
+        storage_path = (
+            f"{certificate_number}.pdf"
+        )
+
+    if not storage_path:
         current_app.logger.error(
-            "Certificate %s has no PDF filename.",
+            "Certificate %s has no PDF storage path.",
             certificate_id,
         )
 
@@ -1207,25 +1221,35 @@ def download_certificate(certificate_id):
             url_for("student.certificates")
         )
 
-    # Normalize Windows paths and prevent path traversal.
-    filename = os.path.basename(
-        str(filename)
+    # --------------------------------------------------------
+    # Prevent invalid/path-traversal storage values
+    #
+    # Supabase object paths are expected to be relative paths.
+    # We reject absolute filesystem paths and traversal attempts.
+    # --------------------------------------------------------
+
+    normalized_path = (
+        storage_path
         .replace("\\", "/")
+        .strip()
     )
 
-    # Ensure the final file is a PDF.
     if (
-        not filename
-        or not filename.lower().endswith(".pdf")
+        normalized_path.startswith("/")
+        or normalized_path.startswith("\\")
+        or "../" in normalized_path
+        or normalized_path == ".."
+        or not normalized_path.lower().endswith(".pdf")
     ):
         current_app.logger.error(
-            "Invalid certificate PDF filename for "
-            "certificate %s.",
+            "Invalid Supabase certificate path. "
+            "CertificateID=%s, Path=%s",
             certificate_id,
+            normalized_path,
         )
 
         flash(
-            "Invalid certificate PDF.",
+            "Invalid certificate PDF path.",
             "error",
         )
 
@@ -1234,55 +1258,41 @@ def download_certificate(certificate_id):
         )
 
     # --------------------------------------------------------
-    # Verify physical PDF exists
-    # --------------------------------------------------------
-
-    pdf_path = os.path.join(
-        certificate_folder,
-        filename,
-    )
-
-    if not os.path.isfile(pdf_path):
-        current_app.logger.error(
-            "Certificate PDF missing. "
-            "CertificateID=%s, Filename=%s, Folder=%s",
-            certificate_id,
-            filename,
-            certificate_folder,
-        )
-
-        flash(
-            "Certificate PDF was not found on the server. "
-            "Please generate the certificate again.",
-            "error",
-        )
-
-        return redirect(
-            url_for("student.certificates")
-        )
-
-    # --------------------------------------------------------
-    # Download
+    # Create temporary signed URL
     # --------------------------------------------------------
 
     try:
-        return send_from_directory(
-            certificate_folder,
-            filename,
-            as_attachment=True,
-            download_name=filename,
-            mimetype="application/pdf",
+
+        download_url = (
+            create_certificate_download_url(
+                normalized_path,
+                expires_in=3600,
+            )
+        )
+
+        if not download_url:
+            raise RuntimeError(
+                "Supabase returned an empty download URL."
+            )
+
+        return redirect(
+            download_url
         )
 
     except Exception:
+
         current_app.logger.exception(
             "Certificate PDF download failed. "
-            "CertificateID=%s",
+            "CertificateID=%s, StudentID=%s, "
+            "StoragePath=%s",
             certificate_id,
+            student_id,
+            normalized_path,
         )
 
         flash(
-            "Unable to download the certificate right now.",
+            "Unable to download the certificate right now. "
+            "Please try again.",
             "error",
         )
 

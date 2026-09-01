@@ -26,6 +26,7 @@ from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.utils import ImageReader
 
+from supabase import create_client, Client
 from database.database import db
 from database.models import (
     Certificate,
@@ -51,6 +52,149 @@ class CertificateError(Exception):
 
     pass
 
+
+# ============================================================
+# SUPABASE STORAGE
+# ============================================================
+
+def _get_supabase_client(app_config) -> Client:
+    """
+    Create a Supabase client for server-side storage operations.
+
+    Required configuration:
+        SUPABASE_URL
+        SUPABASE_SECRET_KEY
+
+    The secret/service-role key must NEVER be exposed
+    to frontend JavaScript or templates.
+    """
+
+    supabase_url = (
+        app_config.get("SUPABASE_URL")
+        or os.getenv("SUPABASE_URL")
+    )
+
+    supabase_key = (
+        app_config.get("SUPABASE_SECRET_KEY")
+        or os.getenv("SUPABASE_SECRET_KEY")
+    )
+
+    if not supabase_url:
+        raise CertificateError(
+            "SUPABASE_URL is not configured."
+        )
+
+    if not supabase_key:
+        raise CertificateError(
+            "SUPABASE_SECRET_KEY is not configured."
+        )
+
+    return create_client(
+        supabase_url,
+        supabase_key,
+    )
+
+
+def _get_certificate_bucket(app_config) -> str:
+    """
+    Return the Supabase Storage bucket used for certificates.
+    """
+
+    bucket = (
+        app_config.get("SUPABASE_CERTIFICATE_BUCKET")
+        or os.getenv(
+            "SUPABASE_CERTIFICATE_BUCKET",
+            "certificates",
+        )
+    )
+
+    bucket = str(bucket).strip()
+
+    if not bucket:
+        raise CertificateError(
+            "Supabase certificate bucket is not configured."
+        )
+
+    return bucket
+
+
+def _upload_certificate_pdf(
+    pdf_path: str,
+    filename: str,
+    app_config,
+) -> str:
+    """
+    Upload a generated certificate PDF to Supabase Storage.
+
+    Returns:
+        The storage object path stored in the database.
+    """
+
+    if not pdf_path:
+        raise CertificateError(
+            "Certificate PDF path is missing."
+        )
+
+    if not os.path.isfile(pdf_path):
+        raise CertificateError(
+            "Generated certificate PDF was not found."
+        )
+
+    supabase = _get_supabase_client(
+        app_config
+    )
+
+    bucket = _get_certificate_bucket(
+        app_config
+    )
+
+    storage_path = filename
+
+    try:
+        with open(
+            pdf_path,
+            "rb",
+        ) as pdf_file:
+
+            pdf_bytes = pdf_file.read()
+
+        supabase.storage.from_(
+            bucket
+        ).upload(
+            storage_path,
+            pdf_bytes,
+            {
+                "content-type": "application/pdf",
+                "cache-control": "3600",
+                "upsert": "true",
+            },
+        )
+
+    except Exception as exc:
+
+        raise CertificateError(
+            "Unable to upload certificate PDF "
+            "to Supabase Storage."
+        ) from exc
+
+    return storage_path
+
+
+def _delete_local_file(path: str):
+    """
+    Safely delete a temporary local certificate file.
+    """
+
+    if not path:
+        return
+
+    try:
+
+        if os.path.isfile(path):
+            os.remove(path)
+
+    except OSError:
+        pass
 
 # ============================================================
 # CHECK CERTIFICATE ELIGIBILITY
@@ -621,7 +765,7 @@ def issue_certificate(
         qr_filename
     )
 
-    # --------------------------------------------------------
+       # --------------------------------------------------------
     # PDF
     # --------------------------------------------------------
 
@@ -629,8 +773,14 @@ def issue_certificate(
         f"{certificate_number}.pdf"
     )
 
+    pdf_path = os.path.join(
+        certificate_folder,
+        pdf_filename,
+    )
+
     try:
 
+        # Generate PDF temporarily on the server.
         generate_certificate_pdf(
             certificate,
             certificate_folder,
@@ -639,20 +789,54 @@ def issue_certificate(
             app_config,
         )
 
-    except Exception as exc:
+        # Upload the generated PDF to Supabase Storage.
+        storage_path = _upload_certificate_pdf(
+            pdf_path,
+            pdf_filename,
+            app_config,
+        )
 
+    except CertificateError:
+
+        # Remove temporary QR code.
         qr_path = os.path.join(
             certificate_folder,
             qr_filename,
         )
 
-        if os.path.exists(qr_path):
+        _delete_local_file(
+            qr_path
+        )
 
-            try:
-                os.remove(qr_path)
+        # Remove temporary PDF.
+        _delete_local_file(
+            pdf_path
+        )
 
-            except OSError:
-                pass
+        db.session.delete(
+            certificate
+        )
+
+        db.session.commit()
+
+        raise
+
+    except Exception as exc:
+
+        # Remove temporary QR code.
+        qr_path = os.path.join(
+            certificate_folder,
+            qr_filename,
+        )
+
+        _delete_local_file(
+            qr_path
+        )
+
+        # Remove temporary PDF.
+        _delete_local_file(
+            pdf_path
+        )
 
         db.session.delete(
             certificate
@@ -661,11 +845,29 @@ def issue_certificate(
         db.session.commit()
 
         raise CertificateError(
-            "Unable to generate the certificate PDF."
+            "Unable to generate or upload "
+            "the certificate PDF."
         ) from exc
 
+    # Store the Supabase Storage object path.
     certificate.PDFPath = (
-        pdf_filename
+        storage_path
+    )
+
+    # The local PDF is no longer required.
+    _delete_local_file(
+        pdf_path
+    )
+
+    # QR code was only needed while creating
+    # the certificate PDF.
+    qr_path = os.path.join(
+        certificate_folder,
+        qr_filename,
+    )
+
+    _delete_local_file(
+        qr_path
     )
 
     # --------------------------------------------------------
