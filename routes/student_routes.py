@@ -13,7 +13,7 @@ Student-facing functionality:
 - Certificate downloads
 - Student profile
 """
-
+import os
 from flask import (
     Blueprint,
     current_app,
