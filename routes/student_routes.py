@@ -1089,19 +1089,17 @@ def generate_certificate(course_id):
 # ============================================================
 
 @student_bp.route(
-    "/certificates/<int:certificate_id>/download",
+    "/certificates/<int:certificate_id>/download"
 )
 @login_required
 @role_required("Student")
 def download_certificate(certificate_id):
-    """
-    Download a certificate PDF belonging to the
-    currently authenticated student.
-    """
 
-    student_id = session.get(
-        "user_id"
-    )
+    student_id = session.get("user_id")
+
+    # --------------------------------------------------------
+    # Find certificate
+    # --------------------------------------------------------
 
     certificate = db.session.get(
         Certificate,
@@ -1109,7 +1107,6 @@ def download_certificate(certificate_id):
     )
 
     if certificate is None:
-
         flash(
             "Certificate not found.",
             "error",
@@ -1122,11 +1119,10 @@ def download_certificate(certificate_id):
         )
 
     # --------------------------------------------------------
-    # Ownership check
+    # Security check
     # --------------------------------------------------------
 
     if certificate.StudentID != student_id:
-
         flash(
             "You do not have access to this certificate.",
             "error",
@@ -1139,13 +1135,16 @@ def download_certificate(certificate_id):
         )
 
     # --------------------------------------------------------
-    # PDF availability
+    # Certificate folder
     # --------------------------------------------------------
 
-    if not certificate.PDFPath:
+    certificate_folder = current_app.config.get(
+        "CERTIFICATE_UPLOAD_FOLDER"
+    )
 
+    if not certificate_folder:
         flash(
-            "Certificate PDF is not available.",
+            "Certificate storage is not configured.",
             "error",
         )
 
@@ -1156,19 +1155,23 @@ def download_certificate(certificate_id):
         )
 
     # --------------------------------------------------------
-    # Prevent path traversal
+    # PDF filename
     # --------------------------------------------------------
 
     filename = (
         certificate.PDFPath
-        .replace("\\", "/")
-        .split("/")[-1]
+        or f"{certificate.CertificateNumber}.pdf"
+    )
+
+    filename = (
+        os.path.basename(
+            filename.replace("\\", "/")
+        )
     )
 
     if not filename:
-
         flash(
-            "Invalid certificate file.",
+            "Certificate PDF filename is invalid.",
             "error",
         )
 
@@ -1178,14 +1181,42 @@ def download_certificate(certificate_id):
             )
         )
 
-    return send_from_directory(
-        current_app.config[
-            "CERTIFICATE_UPLOAD_FOLDER"
-        ],
+    # --------------------------------------------------------
+    # Full PDF path
+    # --------------------------------------------------------
+
+    pdf_path = os.path.join(
+        certificate_folder,
         filename,
-        as_attachment=True,
     )
 
+    # --------------------------------------------------------
+    # Check file exists
+    # --------------------------------------------------------
+
+    if not os.path.isfile(pdf_path):
+
+        flash(
+            "Certificate PDF file was not found on the server.",
+            "error",
+        )
+
+        return redirect(
+            url_for(
+                "student.certificates"
+            )
+        )
+
+    # --------------------------------------------------------
+    # Download
+    # --------------------------------------------------------
+
+    return send_from_directory(
+        certificate_folder,
+        filename,
+        as_attachment=True,
+        download_name=filename,
+    )
 
 # ============================================================
 # STUDENT PROFILE
