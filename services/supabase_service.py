@@ -24,17 +24,33 @@ IMPORTANT:
 import os
 from typing import Optional
 
-from supabase import create_client, Client
+from dotenv import load_dotenv
+from supabase import Client, create_client
+
+
+# ============================================================
+# LOAD ENVIRONMENT
+# ============================================================
+
+# Load .env when this module is imported directly.
+load_dotenv()
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-SUPABASE_BUCKET = os.getenv(
-    "SUPABASE_CERTIFICATE_BUCKET",
-    "certificates",
-).strip() or "certificates"
+def get_certificate_bucket() -> str:
+    """
+    Return the Supabase Storage bucket used for certificates.
+    """
+
+    bucket = os.getenv(
+        "SUPABASE_CERTIFICATE_BUCKET",
+        "certificates",
+    ).strip()
+
+    return bucket or "certificates"
 
 
 # ============================================================
@@ -48,7 +64,9 @@ def get_supabase() -> Client:
     """
     Return the configured Supabase client.
 
-    The client is created lazily.
+    Environment variables are read at runtime so that
+    Render environment variables and .env configuration
+    are handled correctly.
     """
 
     global _supabase
@@ -85,21 +103,26 @@ def get_supabase() -> Client:
 
 
 # ============================================================
-# STORAGE PATH
+# STORAGE PATH NORMALIZATION
 # ============================================================
 
 def normalize_storage_path(
     storage_path: str,
 ) -> str:
     """
-    Normalize a certificate storage path.
+    Normalize and validate a certificate storage path.
 
-    Correct example:
+    Correct:
 
         EDC-2026-123456.pdf
 
-    The bucket name should NOT normally be included because
-    Supabase already knows which bucket is being accessed.
+    Also accepts an accidentally bucket-prefixed path:
+
+        certificates/EDC-2026-123456.pdf
+
+    and converts it to:
+
+        EDC-2026-123456.pdf
     """
 
     if not storage_path:
@@ -109,27 +132,25 @@ def normalize_storage_path(
 
     path = str(storage_path).strip()
 
-    # Windows -> Linux style path
+    # Convert Windows separators.
     path = path.replace("\\", "/")
 
-    # Remove leading slash
+    # Remove leading slash.
     path = path.lstrip("/")
 
-    # Remove accidental ./ prefix
+    # Remove accidental ./ prefix.
     while path.startswith("./"):
         path = path[2:]
 
-    # If database contains:
-    # certificates/file.pdf
-    #
-    # convert it to:
-    # file.pdf
-    bucket = SUPABASE_BUCKET
+    bucket = get_certificate_bucket()
 
+    # Remove bucket prefix if accidentally stored in DB.
     if path.startswith(bucket + "/"):
-        path = path[len(bucket) + 1:]
+        path = path[
+            len(bucket) + 1:
+        ]
 
-    # Security: prevent directory traversal
+    # Prevent directory traversal.
     if ".." in path.split("/"):
         raise ValueError(
             "Invalid certificate storage path."
@@ -142,7 +163,7 @@ def normalize_storage_path(
 
     if not path.lower().endswith(".pdf"):
         raise ValueError(
-            "Certificate storage path must be a PDF."
+            "Certificate storage path must point to a PDF."
         )
 
     return path
@@ -157,18 +178,10 @@ def upload_certificate(
     storage_path: str,
 ) -> str:
     """
-    Upload a generated certificate PDF to Supabase Storage.
+    Upload a certificate PDF to the private
+    Supabase Storage bucket.
 
-    Example:
-
-        local_file_path:
-            /tmp/EDC-2026-123456.pdf
-
-        storage_path:
-            EDC-2026-123456.pdf
-
-    Returns:
-        Supabase storage object path.
+    Returns the Supabase object path.
     """
 
     if not local_file_path:
@@ -176,9 +189,12 @@ def upload_certificate(
             "Local certificate file path is required."
         )
 
-    if not os.path.isfile(local_file_path):
+    if not os.path.isfile(
+        local_file_path
+    ):
         raise FileNotFoundError(
-            f"Certificate PDF not found: {local_file_path}"
+            f"Certificate PDF not found: "
+            f"{local_file_path}"
         )
 
     normalized_path = normalize_storage_path(
@@ -186,6 +202,8 @@ def upload_certificate(
     )
 
     supabase = get_supabase()
+
+    bucket = get_certificate_bucket()
 
     with open(
         local_file_path,
@@ -202,7 +220,7 @@ def upload_certificate(
     try:
 
         supabase.storage.from_(
-            SUPABASE_BUCKET
+            bucket
         ).upload(
             path=normalized_path,
             file=file_bytes,
@@ -224,7 +242,7 @@ def upload_certificate(
 
 
 # ============================================================
-# CREATE SIGNED DOWNLOAD URL
+# SIGNED DOWNLOAD URL
 # ============================================================
 
 def create_certificate_download_url(
@@ -232,10 +250,11 @@ def create_certificate_download_url(
     expires_in: int = 3600,
 ) -> str:
     """
-    Generate a temporary signed URL for a private
+    Create a temporary signed URL for a private
     certificate PDF.
 
     Default expiration:
+
         3600 seconds = 1 hour
     """
 
@@ -250,12 +269,14 @@ def create_certificate_download_url(
 
     supabase = get_supabase()
 
+    bucket = get_certificate_bucket()
+
     try:
 
         response = (
             supabase
             .storage
-            .from_(SUPABASE_BUCKET)
+            .from_(bucket)
             .create_signed_url(
                 normalized_path,
                 expires_in,
@@ -274,9 +295,10 @@ def create_certificate_download_url(
     )
 
     if not signed_url:
+
         raise RuntimeError(
-            "Could not create Supabase signed "
-            "download URL."
+            "Supabase did not return a signed "
+            "certificate download URL."
         )
 
     return signed_url
@@ -290,14 +312,15 @@ def _extract_signed_url(
     response,
 ) -> Optional[str]:
     """
-    Support multiple supabase-py response formats.
+    Extract signed URL from different supabase-py
+    response formats.
     """
 
     if response is None:
         return None
 
     # --------------------------------------------------------
-    # Direct dictionary
+    # Dictionary response
     # --------------------------------------------------------
 
     if isinstance(
@@ -312,13 +335,16 @@ def _extract_signed_url(
             "url",
         ):
 
-            value = response.get(key)
+            value = response.get(
+                key
+            )
 
             if value:
                 return str(value)
 
-        # Nested data
-        data = response.get("data")
+        data = response.get(
+            "data"
+        )
 
         if isinstance(
             data,
@@ -332,13 +358,15 @@ def _extract_signed_url(
                 "url",
             ):
 
-                value = data.get(key)
+                value = data.get(
+                    key
+                )
 
                 if value:
                     return str(value)
 
     # --------------------------------------------------------
-    # Object with .data
+    # Response object with .data
     # --------------------------------------------------------
 
     data = getattr(
@@ -359,13 +387,15 @@ def _extract_signed_url(
             "url",
         ):
 
-            value = data.get(key)
+            value = data.get(
+                key
+            )
 
             if value:
                 return str(value)
 
     # --------------------------------------------------------
-    # Direct attributes
+    # Direct response attributes
     # --------------------------------------------------------
 
     for attribute in (
@@ -417,13 +447,7 @@ def certificate_exists(
 
     supabase = get_supabase()
 
-    # Example:
-    #
-    # certificates/
-    #     EDC-2026-123456.pdf
-    #
-    # directory = ""
-    # filename  = EDC-2026-123456.pdf
+    bucket = get_certificate_bucket()
 
     directory = os.path.dirname(
         normalized_path
@@ -441,11 +465,10 @@ def certificate_exists(
         files = (
             supabase
             .storage
-            .from_(SUPABASE_BUCKET)
+            .from_(bucket)
             .list(directory)
         )
 
-        # Handle response-object versions
         if not isinstance(
             files,
             list,
@@ -480,6 +503,7 @@ def certificate_exists(
                 return True
 
     except Exception:
+
         return False
 
     return False
@@ -514,10 +538,12 @@ def delete_certificate(
 
     supabase = get_supabase()
 
+    bucket = get_certificate_bucket()
+
     try:
 
         supabase.storage.from_(
-            SUPABASE_BUCKET
+            bucket
         ).remove(
             [normalized_path]
         )
@@ -533,15 +559,14 @@ def delete_certificate(
 
 
 # ============================================================
-# DELETE LOCAL TEMP FILE
+# DELETE LOCAL TEMPORARY FILE
 # ============================================================
 
 def delete_local_certificate_file(
     local_file_path: str,
 ) -> bool:
     """
-    Delete a temporary certificate PDF from
-    the local filesystem after uploading it.
+    Delete a locally generated temporary PDF.
     """
 
     if not local_file_path:
@@ -560,6 +585,7 @@ def delete_local_certificate_file(
             return True
 
     except OSError:
+
         return False
 
     return False
@@ -572,8 +598,6 @@ def delete_local_certificate_file(
 def reset_supabase_client() -> None:
     """
     Reset the cached Supabase client.
-
-    Mainly useful for testing.
     """
 
     global _supabase
