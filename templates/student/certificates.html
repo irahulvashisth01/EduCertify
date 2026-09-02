@@ -14,6 +14,7 @@
     href="{{ url_for('static', filename='css/certificate.css') }}"
 >
 
+
 {% endblock %}
 
 
@@ -25,6 +26,7 @@
     {% include "student/_sidebar.html" %}
 
     <main class="ec-dash-content ec-fade-in">
+
 
         <!-- =====================================================
              PAGE HEADER
@@ -70,12 +72,14 @@
                 </div>
 
                 <div>
+
                     <h3>Certificate Ready</h3>
 
                     <p>
                         Congratulations! You have completed
                         the requirements for the following course.
                     </p>
+
                 </div>
 
             </div>
@@ -94,6 +98,7 @@
                         </div>
 
                         <div>
+
                             <strong>
                                 {{ course.Title }}
                             </strong>
@@ -101,6 +106,7 @@
                             <span>
                                 Course requirements completed
                             </span>
+
                         </div>
 
                     </div>
@@ -182,29 +188,24 @@
 
                 <article class="certificate-card">
 
+
                     <!-- =================================================
                          CERTIFICATE PREVIEW
                     ================================================== -->
 
                     <div class="certificate-preview">
 
-                        <!-- Premium border -->
                         <div class="certificate-border"></div>
 
-                        <!-- Decorative corners -->
                         <div class="cert-corner cert-corner-tl"></div>
                         <div class="cert-corner cert-corner-tr"></div>
                         <div class="cert-corner cert-corner-bl"></div>
                         <div class="cert-corner cert-corner-br"></div>
 
-
-                        <!-- Top gold line -->
                         <div class="cert-gold-line"></div>
 
 
-                        <!-- =================================================
-                             BRAND
-                        ================================================== -->
+                        <!-- BRAND -->
 
                         <div class="preview-brand">
 
@@ -228,7 +229,6 @@
 
                             </div>
 
-
                             <div class="preview-brand-text">
 
                                 <strong>
@@ -244,9 +244,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             TITLE
-                        ================================================== -->
+                        <!-- TITLE -->
 
                         <div class="preview-heading">
 
@@ -256,7 +254,9 @@
 
                                 <span></span>
 
-                                <strong>OF COMPLETION</strong>
+                                <strong>
+                                    OF COMPLETION
+                                </strong>
 
                                 <span></span>
 
@@ -265,38 +265,36 @@
                         </div>
 
 
-                        <!-- Presented -->
+                        <!-- PRESENTED -->
+
                         <div class="preview-presented">
+
                             This certificate is proudly presented to
+
                         </div>
 
 
-                        <!-- =================================================
-                             STUDENT NAME
-                        ================================================== -->
+                        <!-- STUDENT NAME -->
 
                         <div class="preview-student">
 
-                            {{ cert.student.Name
-                                if cert.student is defined
-                                and cert.student
-                                else session.get('name', 'Student')
-                            }}
+                            {{ cert.student.FullName if cert.student else 'Student' }}
 
                         </div>
 
                         <div class="preview-name-line"></div>
 
 
-                        <!-- Completion -->
+                        <!-- COMPLETION -->
+
                         <div class="preview-completion">
+
                             for successfully completing the course
+
                         </div>
 
 
-                        <!-- =================================================
-                             COURSE
-                        ================================================== -->
+                        <!-- COURSE -->
 
                         <div class="preview-course">
 
@@ -305,13 +303,13 @@
                         </div>
 
 
-                        <!-- =================================================
-                             SCORE
-                        ================================================== -->
+                        <!-- SCORE -->
 
                         <div class="preview-score">
 
-                            <span>Final Score:</span>
+                            <span>
+                                Final Score:
+                            </span>
 
                             <strong>
                                 {{ cert.FinalScore }}%
@@ -320,15 +318,15 @@
                         </div>
 
 
-                        <!-- =================================================
-                             DATE
-                        ================================================== -->
+                        <!-- DATE -->
 
                         <div class="preview-date">
 
                             <i class="fa-regular fa-calendar"></i>
 
-                            <span>Issued on:</span>
+                            <span>
+                                Issued on:
+                            </span>
 
                             {% if cert.IssueDate %}
 
@@ -346,41 +344,20 @@
 
 
                         <!-- =================================================
-                             CERTIFIED SEAL
+                             CERTIFICATE SEAL
                         ================================================== -->
 
                         <div class="certificate-seal">
 
-                            <div class="seal-outer">
-
-                                <div class="seal-inner">
-
-                                    <div class="seal-stars">
-                                        ★ ★ ★
-                                    </div>
-
-                                    <i class="fa-solid fa-graduation-cap"></i>
-
-                                    <strong>
-                                        CERTIFIED
-                                    </strong>
-
-                                    <small>
-                                        BY EDUCERTIFY
-                                    </small>
-
-                                    <div class="seal-stars">
-                                        ★ ★ ★
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            <div class="seal-ribbon">
-                                <span></span>
-                                <span></span>
-                            </div>
+                            <img
+                                class="certificate-seal-image"
+                                src="{{ url_for(
+                                    'static',
+                                    filename='images/certificate-seal.png'
+                                ) }}"
+                                alt="EduCertify Certified Seal"
+                                onerror="this.style.display='none';"
+                            >
 
                         </div>
 
@@ -409,20 +386,26 @@
 
 
                         <!-- =================================================
-                             QR CODE
+                             REAL QR CODE
                         ================================================== -->
 
-                        <div class="preview-qr">
+                        <div
+                            class="preview-qr"
+                            data-certificate-number="{{ cert.CertificateNumber }}"
+                            data-verification-url="https://educertify.onrender.com/certificates/verify/{{ cert.CertificateNumber | urlencode }}"
+                        >
 
-                            <div class="qr-box">
+                            <div
+                                class="qr-box"
+                                id="qr-{{ cert.CertificateID }}"
+                                aria-label="QR code for certificate verification"
+                            >
 
                                 {% if cert.CertificateNumber %}
 
-                                    <div class="qr-pattern">
-                                        <div class="qr-center">
-                                            <i class="fa-solid fa-shield-halved"></i>
-                                        </div>
-                                    </div>
+                                    <span class="qr-loading">
+                                        Generating QR…
+                                    </span>
 
                                 {% else %}
 
@@ -432,7 +415,22 @@
 
                             </div>
 
-                            <strong>Scan to verify</strong>
+                            <strong>
+                                Scan to verify
+                            </strong>
+
+                            {% if cert.CertificateNumber %}
+
+                                <a
+                                    class="certificate-verify-link"
+                                    href="https://educertify.onrender.com/certificates/verify/{{ cert.CertificateNumber | urlencode }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Verify online
+                                </a>
+
+                            {% endif %}
 
                         </div>
 
@@ -448,28 +446,26 @@
                             </span>
 
                             <strong>
-                                {{ cert.CertificateNumber }}
+                                {{ cert.CertificateNumber or 'N/A' }}
                             </strong>
 
                         </div>
 
 
-                        <!-- =================================================
-                             WATERMARK
-                        ================================================== -->
+                        <!-- WATERMARK -->
 
                         <div class="preview-watermark">
 
                             <i class="fa-solid fa-graduation-cap"></i>
 
-                            <span>EDUCERTIFY</span>
+                            <span>
+                                EDUCERTIFY
+                            </span>
 
                         </div>
 
 
-                        <!-- =================================================
-                             BOTTOM TRUST BAR
-                        ================================================== -->
+                        <!-- FOOTER -->
 
                         <div class="preview-footer">
 
@@ -525,7 +521,6 @@
                     </div>
 
 
-
                     <!-- =====================================================
                          CERTIFICATE INFORMATION
                     ====================================================== -->
@@ -535,7 +530,9 @@
                         <div class="certificate-info-header">
 
                             <div class="certificate-award-icon">
+
                                 <i class="fa-solid fa-award"></i>
+
                             </div>
 
                             <div>
@@ -553,7 +550,7 @@
                         </div>
 
 
-                        <!-- Metadata -->
+                        <!-- METADATA -->
 
                         <div class="certificate-meta">
 
@@ -621,15 +618,21 @@
                                 {% if cert.Status == 'Valid' %}
 
                                     <strong class="status-valid">
+
                                         <i class="fa-solid fa-circle-check"></i>
+
                                         Valid
+
                                     </strong>
 
                                 {% else %}
 
                                     <strong class="status-revoked">
+
                                         <i class="fa-solid fa-circle-xmark"></i>
+
                                         Revoked
+
                                     </strong>
 
                                 {% endif %}
@@ -639,9 +642,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             ACTIONS
-                        ================================================== -->
+                        <!-- ACTIONS -->
 
                         <div class="certificate-actions">
 
@@ -671,6 +672,7 @@
                                 ) }}"
                                 class="cert-action cert-action-outline"
                                 target="_blank"
+                                rel="noopener noreferrer"
                             >
 
                                 <i class="fa-solid fa-shield-halved"></i>
@@ -716,8 +718,15 @@
                     <i class="fa-solid fa-shield-halved"></i>
 
                     <div>
-                        <strong>Verified Certificates</strong>
-                        <span>Authentic &amp; publicly verifiable</span>
+
+                        <strong>
+                            Verified Certificates
+                        </strong>
+
+                        <span>
+                            Authentic &amp; publicly verifiable
+                        </span>
+
                     </div>
 
                 </div>
@@ -728,8 +737,15 @@
                     <i class="fa-solid fa-qrcode"></i>
 
                     <div>
-                        <strong>QR Verification</strong>
-                        <span>Verify certificates instantly</span>
+
+                        <strong>
+                            QR Verification
+                        </strong>
+
+                        <span>
+                            Verify certificates instantly
+                        </span>
+
                     </div>
 
                 </div>
@@ -740,8 +756,15 @@
                     <i class="fa-solid fa-cloud-arrow-down"></i>
 
                     <div>
-                        <strong>Digital Download</strong>
-                        <span>Keep your certificate forever</span>
+
+                        <strong>
+                            Digital Download
+                        </strong>
+
+                        <span>
+                            Keep your certificate forever
+                        </span>
+
                     </div>
 
                 </div>
@@ -752,8 +775,15 @@
                     <i class="fa-solid fa-share-nodes"></i>
 
                     <div>
-                        <strong>Easy Sharing</strong>
-                        <span>Share your achievement</span>
+
+                        <strong>
+                            Easy Sharing
+                        </strong>
+
+                        <span>
+                            Share your achievement
+                        </span>
+
                     </div>
 
                 </div>
@@ -805,6 +835,7 @@
 
         {% endif %}
 
+
     </main>
 
 </div>
@@ -812,18 +843,68 @@
 {% endblock %}
 
 
-
 {% block extra_js %}
 
+<!-- ============================================================
+     REAL QR CODE LIBRARY
+     ============================================================ -->
+
 <script
-    src="{{ url_for(
-        'static',
-        filename='js/dashboard.js'
-    ) }}"
+    src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
 ></script>
 
 
 <script>
+
+/* ============================================================
+   GENERATE REAL QR CODES
+   ============================================================ */
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    document
+        .querySelectorAll(".preview-qr[data-verification-url]")
+        .forEach(function (qrContainer) {
+
+            const qrBox =
+                qrContainer.querySelector(".qr-box");
+
+            const verificationUrl =
+                qrContainer.dataset.verificationUrl;
+
+            if (
+                !qrBox ||
+                !verificationUrl ||
+                typeof QRCode === "undefined"
+            ) {
+                return;
+            }
+
+            qrBox.innerHTML = "";
+
+            new QRCode(qrBox, {
+
+                text: verificationUrl,
+
+                width: 60,
+                height: 60,
+
+                colorDark: "#0f315c",
+                colorLight: "#ffffff",
+
+                correctLevel:
+                    QRCode.CorrectLevel.H
+
+            });
+
+        });
+
+});
+
+
+/* ============================================================
+   SHARE CERTIFICATE
+   ============================================================ */
 
 function shareCertificate(button) {
 
@@ -834,9 +915,9 @@ function shareCertificate(button) {
         button.dataset.course;
 
     const verificationUrl =
-        window.location.origin +
-        "/certificates/verify/" +
+        "https://educertify.onrender.com/certificates/verify/" +
         encodeURIComponent(certificateId);
+
 
     const shareText =
         "I successfully completed " +
@@ -845,28 +926,37 @@ function shareCertificate(button) {
         "Certificate ID: " +
         certificateId;
 
+
     if (navigator.share) {
 
         navigator.share({
 
-            title: "EduCertify Certificate",
+            title:
+                "EduCertify Certificate",
 
-            text: shareText,
+            text:
+                shareText,
 
-            url: verificationUrl
+            url:
+                verificationUrl
 
         }).catch(function () {});
 
-    } else {
+    }
+
+    else {
 
         const copyText =
             shareText +
             "\nVerify: " +
             verificationUrl;
 
+
         if (navigator.clipboard) {
 
-            navigator.clipboard.writeText(copyText)
+            navigator.clipboard
+                .writeText(copyText)
+
                 .then(function () {
 
                     alert(
@@ -874,13 +964,16 @@ function shareCertificate(button) {
                     );
 
                 })
+
                 .catch(function () {
 
                     fallbackCopy(verificationUrl);
 
                 });
 
-        } else {
+        }
+
+        else {
 
             fallbackCopy(verificationUrl);
 
@@ -901,5 +994,13 @@ function fallbackCopy(url) {
 }
 
 </script>
+
+
+<script
+    src="{{ url_for(
+        'static',
+        filename='js/dashboard.js'
+    ) }}"
+></script>
 
 {% endblock %}
